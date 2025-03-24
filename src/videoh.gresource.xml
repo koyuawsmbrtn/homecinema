@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/space/koyu/videoh">
+    <file preprocess="xml-stripblanks">window.ui</file>
+    <file preprocess="xml-stripblanks">settings.ui</file>
+    <file preprocess="xml-stripblanks">item.ui</file>
+    <file preprocess="xml-stripblanks">player.ui</file>
+    <file preprocess="xml-stripblanks">episodes.ui</file>
+    <file preprocess="xml-stripblanks">gtk/help-overlay.ui</file>
+    <file preprocess="xml-stripblanks">icons/scalable/actions/video-reel2-symbolic.svg</file>
+    <file preprocess="xml-stripblanks">icons/scalable/actions/info-outline-symbolic.svg</file>
+  </gresource>
+</gresources>

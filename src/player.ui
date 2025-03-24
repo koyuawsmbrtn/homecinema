@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <requires lib="Adw" version="1.0"/>
+  <requires lib="clapper-gtk" version="1.0"/>
+  <template class="VideohPlayer" parent="GtkBox">
+    <property name="orientation">vertical</property>
+    <child>
+      <object class="AdwHeaderBar" id="header_bar">
+        <property name="show-start-title-buttons">false</property>
+        <child type="end">
+          <object class="GtkButton" id="fullscreen_button">
+            <property name="icon-name">view-fullscreen-symbolic</property>
+            <property name="tooltip-text" translatable="yes">Fullscreen</property>
+          </object>
+        </child>
+      </object>
+    </child>
+    <child>
+      <object class="GtkBox" id="player_box">
+        <property name="vexpand">true</property>
+        <property name="hexpand">true</property>
+      </object>
+    </child>
+  </template>
+</interface>

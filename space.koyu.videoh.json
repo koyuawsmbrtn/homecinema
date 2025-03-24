@@ -1,0 +1,105 @@
+{
+    "app-id": "space.koyu.videoh",
+    "runtime": "org.gnome.Platform",
+    "runtime-version": "47",
+    "sdk": "org.gnome.Sdk",
+    "command": "videoh",
+    "finish-args": [
+        "--share=ipc",
+        "--share=network",
+        "--socket=fallback-x11",
+        "--socket=wayland",
+        "--device=dri",
+        "--talk-name=org.freedesktop.Flatpak",
+        "--filesystem=host:ro",
+        "--talk-name=org.freedesktop.portal.FileChooser",
+        "--talk-name=org.freedesktop.portal.OpenURI",
+        "--filesystem=host",
+        "--socket=pulseaudio",
+        "--device=all",
+        "--filesystem=xdg-run/gvfsd",
+        "--env=CLAPPER_USE_LEGACY_SINK=1",
+        "--talk-name=org.gtk.vfs.*",
+        "--filesystem=xdg-videos"
+    ],
+    "add-extensions": {
+        "org.freedesktop.Platform.GL": {
+            "version": "1.4",
+            "directory": "lib/gl",
+            "subdirectories": true,
+            "no-autodownload": true,
+            "autodelete": false
+        },
+        "org.freedesktop.Platform.ffmpeg-full": {
+            "version": "22.08",
+            "directory": "lib/ffmpeg",
+            "add-ld-path": ".",
+            "no-autodownload": true,
+            "autodelete": false
+        },
+        "org.freedesktop.Platform.gstreamer": {
+            "version": "22.08",
+            "directory": "lib/gstreamer",
+            "no-autodownload": true,
+            "autodelete": false
+        }
+    },
+    "inherit-extensions": [
+        "org.freedesktop.Platform.gstreamer",
+        "org.freedesktop.Platform.ffmpeg-full",
+        "org.freedesktop.Platform.GL"
+    ],
+    "modules": [
+        "python-deps.json",
+        {
+            "name": "clapper",
+            "buildsystem": "meson",
+            "config-opts": [
+                "-Dclapper-gtk=enabled",
+                "-Dintrospection=enabled",
+                "-Dmpris=enabled",
+                "-Denhancers-loader=disabled"
+            ],
+            "build-options": {
+                "env": {
+                    "PYTHON": "python3"
+                }
+            },
+            "sources": [
+                {
+                    "type": "git",
+                    "url": "https://github.com/rafostar/clapper.git",
+                    "tag": "0.8.0",
+                    "commit": "true"
+                }
+            ]
+        },
+        {
+            "name": "pygobject",
+            "buildsystem": "meson",
+            "build-options": {
+                "config-opts": [
+                    "-Dtests=false"
+                ]
+            },
+            "sources": [
+                {
+                    "type": "archive",
+                    "url": "https://download.gnome.org/sources/pygobject/3.44/pygobject-3.44.1.tar.xz",
+                    "sha256": "3c6805d1321be90cc32e648215a562430e0d3d6edcda8f4c5e7a9daffcad5710"
+                }
+            ]
+        },
+        {
+            "name": "videoh",
+            "builddir": true,
+            "buildsystem": "meson",
+            "sources": [
+                {
+                    "type": "dir",
+                    "path": "."
+                }
+            ]
+        }
+    ]
+}

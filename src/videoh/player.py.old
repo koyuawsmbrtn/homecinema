@@ -1,0 +1,139 @@
+import os
+os.environ.setdefault("CLAPPER_USE_LEGACY_SINK", "1")
+
+import gi
+gi.require_version('Gtk', '4.0')
+gi.require_version('Adw', '1')
+gi.require_version('ClapperGtk', '0.0')
+gi.require_version('Clapper', '0.0')
+gi.require_version('Gst', '1.0')
+
+from gi.repository import Adw, Gtk, GObject, ClapperGtk, Clapper, Gst
+from gettext import gettext as _
+
+@Gtk.Template(resource_path='/space/koyu/videoh/player.ui')
+class VideohPlayer(Gtk.Box):
+    __gtype_name__ = 'VideohPlayer'
+
+    # Template children
+    player_box = Gtk.Template.Child()
+    fullscreen_button = Gtk.Template.Child()
+
+    def __init__(self, parent_window, video_path, **kwargs):
+        super().__init__(**kwargs)
+
+        self.parent_window = parent_window
+        self.video_path = video_path
+
+        # Create ClapperGtk video widget
+        self.player = ClapperGtk.Video.new()
+        self.player.set_property("hexpand", True)
+        self.player.set_property("vexpand", True)
+        self.player.set_auto_inhibit(True)  # Prevent screen blanking during playback
+        self.player_box.append(self.player)
+
+        # Connect signals
+        self.fullscreen_button.connect('clicked', self._on_fullscreen_clicked)
+        self.player.connect('toggle-fullscreen', self._on_video_fullscreen)
+
+        try:
+            clapper_player = self.player.get_player()
+            if clapper_player:
+                # Delay playback initialization until the player is ready
+                media_uri = Gst.filename_to_uri(video_path)
+                print("Media URI:", media_uri)
+                if not media_uri:
+                    self._show_error_dialog(_("Invalid media URI"))
+                else:
+                    GObject.idle_add(self._start_playback, clapper_player, media_uri)
+            else:
+                self._show_error_dialog(_("Could not initialize video player"))
+        except GObject.GError as e:
+            self._show_error_dialog(str(e))
+
+    def _start_playback(self, clapper_player, media_uri):
+        queue = clapper_player.get_queue()
+        print("Queue:", queue)
+        if queue is None:
+            print("Queue not available yet. Retrying...")
+            # Retry after 100 ms
+            GObject.timeout_add(100, self._start_playback, clapper_player, media_uri)
+            return False  # Stop current idle callback
+
+        media_item = Clapper.MediaItem.new(media_uri)
+        if not media_item:
+            self._show_error_dialog(_("Failed to create media item"))
+            return False
+
+        # Configure playback
+        clapper_player.set_volume(1.0)
+        clapper_player.set_autoplay(True)
+
+        # Connect player signals
+        clapper_player.connect('error', self._on_player_error)
+        clapper_player.connect('warning', self._on_player_warning)
+        clapper_player.connect('notify::state', self._on_state_changed)
+
+        # Add to queue and start playback
+        queue.add_item(media_item)
+        queue.select_item(media_item)
+        clapper_player.play()
+        return False  # Stop idle callback
+
+    def _on_message(self, bus, message):
+        t = message.type
+        if t == Gst.MessageType.ERROR:
+            err, debug = message.parse_error()
+            self._show_error_dialog(f"Error: {err.message}")
+        elif t == Gst.MessageType.EOS:
+            self._on_back_clicked(None)
+
+    def _show_error_dialog(self, message):
+        dialog = Adw.MessageDialog(
+            transient_for=self.parent_window,
+            heading=_("Error"),
+            body=message
+        )
+        dialog.add_response("close", _("Close"))
+        dialog.present()
+        self.parent_window.navigation_view.pop()
+
+    def _on_back_clicked(self, button):
+        clapper_player = self.player.get_player()
+        clapper_player.stop()
+        self.parent_window.navigation_view.pop()
+
+    def _on_fullscreen_clicked(self, button):
+        if self.parent_window.is_fullscreen():
+            self.parent_window.unfullscreen()
+            self.fullscreen_button.set_icon_name("view-fullscreen-symbolic")
+        else:
+            self.parent_window.fullscreen()
+            self.fullscreen_button.set_icon_name("view-restore-symbolic")
+
+    def _on_video_fullscreen(self, video):
+        """Handle native video fullscreen request"""
+        self._on_fullscreen_clicked(None)
+
+    def _on_player_error(self, player, error, debug_info):
+        """Handle player errors"""
+        self._show_error_dialog(f"Error: {error.message}")
+        if debug_info:
+            print(f"Debug info: {debug_info}")
+
+    def _on_player_warning(self, player, error, debug_info):
+        """Handle player warnings"""
+        print(f"Warning: {error.message}")
+        if debug_info:
+            print(f"Debug info: {debug_info}")
+
+    def _on_player_state(self, player, state):
+        """Handle player state changes"""
+        if state == Clapper.PlayerState.STOPPED:
+            self._on_back_clicked(None)
+
+    def _on_state_changed(self, player, pspec):
+        """Handle player state changes"""
+        state = player.get_state()
+        if state == Clapper.PlayerState.STOPPED:
+            self._on_back_clicked(None)

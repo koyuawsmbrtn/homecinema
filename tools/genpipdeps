@@ -1,0 +1,2 @@
+#!/bin/sh
+./tools/flatpak-pip-generator --requirements-file=requirements.txt --output python-deps

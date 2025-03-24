@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <requires lib="Adw" version="1.0"/>
+  <template class="VideohPreferencesWindow" parent="AdwPreferencesWindow">
+    <property name="title" translatable="yes">Settings</property>
+    <property name="default-width">600</property>
+    <property name="default-height">400</property>
+    <child>
+      <object class="AdwPreferencesPage">
+        <child>
+          <object class="AdwPreferencesGroup">
+            <property name="title" translatable="yes">Sources</property>
+            <child>
+              <object class="AdwActionRow">
+                <property name="title" translatable="yes">IMDB</property>
+                <child>
+                  <object class="GtkSwitch" id="imdb_switch">
+                    <property name="valign">center</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwActionRow">
+                <property name="title" translatable="yes">TVmaze</property>
+                <child>
+                  <object class="GtkSwitch" id="tvmaze_switch">
+                    <property name="valign">center</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwActionRow">
+                <property name="title" translatable="yes">MyAnimeList</property>
+                <child>
+                  <object class="GtkSwitch" id="mal_switch">
+                    <property name="valign">center</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="AdwPreferencesGroup">
+            <property name="title" translatable="yes">Auto-fetch</property>
+            <child>
+              <object class="AdwActionRow">
+                <property name="title" translatable="yes">Enable auto-fetch</property>
+                <property name="subtitle" translatable="yes">Automatically fetch metadata when starting the application</property>
+                <child>
+                  <object class="GtkSwitch" id="auto_fetch_switch">
+                    <property name="valign">center</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

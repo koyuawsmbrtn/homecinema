@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="space.koyu.videoh" path="/space/koyu/videoh/">
+    <key name="use-imdb" type="b">
+      <default>false</default>
+      <summary>Use IMDB</summary>
+      <description>Whether to use IMDB as a metadata source</description>
+    </key>
+    <key name="use-mal" type="b">
+      <default>false</default>
+      <summary>Use MyAnimeList</summary>
+      <description>Whether to use MyAnimeList as a metadata source</description>
+    </key>
+    <key name="use-tvmaze" type="b">
+      <default>false</default>
+      <summary>Use TVmaze</summary>
+      <description>Whether to use TVmaze as a metadata source</description>
+    </key>
+    <key name="auto-fetch" type="b">
+      <default>false</default>
+      <summary>Auto-fetch metadata</summary>
+      <description>Automatically fetch metadata when starting the application</description>
+    </key>
+  </schema>
+</schemalist>

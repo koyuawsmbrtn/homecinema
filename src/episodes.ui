@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <requires lib="libadwaita" version="1.0"/>
+  <template class="EpisodesUI" parent="GtkBox">
+    <property name="orientation">vertical</property>
+    <child>
+      <object class="AdwHeaderBar">
+        <child type="title">
+          <object class="GtkBox">
+            <property name="spacing">12</property>
+            <child>
+              <object class="GtkDropDown" id="season_selector">
+                <property name="valign">center</property>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+    <child>
+      <object class="GtkScrolledWindow">
+        <property name="vexpand">true</property>
+        <child>
+          <object class="GtkBox">
+            <property name="orientation">vertical</property>
+            <property name="margin-start">12</property>
+            <property name="margin-end">12</property>
+            <property name="spacing">12</property>
+            <!-- Show info section -->
+            <child>
+              <object class="GtkBox" id="show_info_box">
+                <property name="orientation">horizontal</property>
+                <property name="margin-top">12</property>
+                <property name="margin-bottom">12</property>
+                <property name="spacing">12</property>
+                <style>
+                  <class name="card"/>
+                  <class name="show-info-box"/>
+                </style>
+                <child>
+                  <object class="GtkPicture" id="show_poster">
+                    <property name="width-request">150</property>
+                    <property name="height-request">250</property>
+                    <style>
+                      <class name="rounded-corners"/>
+                    </style>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">6</property>
+                    <child>
+                      <object class="GtkLabel" id="show_title">
+                        <property name="xalign">0</property>
+                        <style>
+                          <class name="title-1"/>
+                          <class name="show-title"/>
+                        </style>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="show_year">
+                        <property name="xalign">0</property>
+                        <style>
+                          <class name="subtitle-1"/>
+                          <class name="show-year"/>
+                        </style>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="show_genres">
+                        <property name="xalign">0</property>
+                        <style>
+                          <class name="caption"/>
+                          <class name="show-genres"/>
+                        </style>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkBox">
+                        <property name="spacing">12</property>
+                        <property name="margin-top">6</property>
+                        <child>
+                          <object class="GtkLabel" id="show_rating">
+                            <property name="xalign">0</property>
+                            <style>
+                              <class name="rating-label"/>
+                            </style>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="show_cast">
+                            <property name="xalign">0</property>
+                            <property name="wrap">true</property>
+                            <property name="wrap-mode">word-char</property>
+                            <style>
+                              <class name="cast-label"/>
+                            </style>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="show_plot">
+                        <property name="xalign">0</property>
+                        <property name="wrap">true</property>
+                        <property name="wrap-mode">word-char</property>
+                        <property name="vexpand">true</property>
+                        <property name="selectable">true</property>
+                        <style>
+                          <class name="body"/>
+                          <class name="show-plot"/>
+                        </style>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <!-- Episodes list -->
+            <child>
+              <object class="GtkListBox" id="episodes_box">
+                <property name="selection-mode">none</property>
+                <style>
+                  <class name="boxed-list"/>
+                  <class name="episode-list"/>
+                </style>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

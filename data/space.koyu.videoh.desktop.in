@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Vide OH!
+Exec=videoh
+Icon=space.koyu.videoh
+Terminal=false
+Type=Application
+Categories=Utility;
+Keywords=GTK;
+StartupNotify=true
+DBusActivatable=true
