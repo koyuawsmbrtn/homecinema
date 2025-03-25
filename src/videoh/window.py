@@ -29,7 +29,7 @@ gi.require_version('Adw', '1')
 from gi.repository import Adw, Gtk, Gio, GLib, GdkPixbuf, Pango, Gdk
 from gettext import gettext as _
 from videoh.imdb import IMDb
-from videoh.tvmaze import TVMaze  # Replace TVDB import
+from videoh.tvmaze import TVMaze
 from .item import VideohItem
 from .player import VideohPlayer
 from .episodes import EpisodesUI
@@ -82,6 +82,12 @@ class VideohWindow(Adw.ApplicationWindow):
     toast_overlay = Gtk.Template.Child()
     refresh_button = Gtk.Template.Child()
     
+    # Add template children for search
+    search_bar = Gtk.Template.Child()
+    search_entry = Gtk.Template.Child()
+    search_mode = Gtk.Template.Child()
+    show_search_btn = Gtk.Template.Child()
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.settings = Gio.Settings.new('space.koyu.videoh')
@@ -108,20 +114,33 @@ class VideohWindow(Adw.ApplicationWindow):
         # Connect refresh button
         self.refresh_button.connect('clicked', lambda _: self.on_fetch_metadata(None, None))
 
+        # Connect search signals
+        self.show_search_btn.connect('toggled', self.on_show_search_toggled)
+        self.search_entry.connect('search-changed', self.on_search_changed)
+        self.search_mode.connect('notify::selected', self.on_search_changed)
+
     def setup_actions(self):
-        # Add actions to the application
+        """Set up window actions"""
         actions = [
             ('fetch-metadata', self.on_fetch_metadata),
             ('settings', self.on_settings),
             ('help', self.on_help),
             ('about', self.on_about),
-            ('open-folder', self.on_open_folder)
+            ('open-folder', self.on_open_folder),
+            ('view-sorting', self.on_view_sorting, 's')
         ]
         
-        for action_name, callback in actions:
-            action = Gio.SimpleAction.new(action_name, None)
-            action.connect('activate', callback)
-            self.get_application().add_action(action)
+        for action_def in actions:
+            if len(action_def) == 2:
+                name, callback = action_def
+                action = Gio.SimpleAction.new(name, None)
+                action.connect('activate', callback)
+            else:
+                name, callback, param_type = action_def
+                action = Gio.SimpleAction.new(name, GLib.VariantType(param_type))
+                action.connect('activate', callback)
+            
+            self.add_action(action)  # Add to window instead of application
 
     def setup_directories(self):
         # Create necessary directories if they don't exist
@@ -256,9 +275,146 @@ class VideohWindow(Adw.ApplicationWindow):
                 return None
         return str(image_path)
 
+    def _fetch_movie_metadata(self, imdb, movie, progress_dialog):
+        """Fetch metadata for a single movie"""
+        try:
+            # Search for movie
+            search_results = imdb.search_movie(movie['title'])
+            if search_results:
+                # Get first matching result - handle both object and dict formats
+                first_result = search_results[0]
+                movie_id = first_result.getID() if hasattr(first_result, 'getID') else first_result.get('movieID')
+                
+                if movie_id:
+                    movie_data = imdb.get_movie(movie_id)
+                    
+                    # Build metadata
+                    metadata = {
+                        'title': movie_data.get('title'),
+                        'year': movie_data.get('year'),
+                        'rating': movie_data.get('rating'),
+                        'plot': movie_data.get('plot outline', ''),
+                        'director': [p['name'] for p in movie_data.get('director', [])],
+                        'cast': [p['name'] for p in movie_data.get('cast', [])[:5]],
+                        'genres': movie_data.get('genres', []),
+                        'type': 'movie'
+                    }
+                    
+                    # Download poster if available
+                    if movie_data.get('full-size cover url'):
+                        poster_path = self.download_poster(
+                            movie_data['full-size cover url'],
+                            movie['title']
+                        )
+                        if poster_path:
+                            metadata['poster'] = poster_path
+                    
+                    # Update metadata
+                    self.update_metadata(movie['path'], metadata)
+                    
+        except Exception as e:
+            print(f"Error processing movie {movie['title']}: {e}")
+
+    def _fetch_show_metadata(self, tvmaze, show_name, seasons, progress_dialog):
+        """Fetch metadata for a single TV show and its episodes"""
+        try:
+            # Search for show
+            search_results = tvmaze.search_shows(show_name)
+            if search_results:
+                show_data = search_results[0]['show']
+                
+                # Build show metadata
+                show_metadata = {
+                    'title': show_data.get('name'),
+                    'year': show_data.get('premiered', '').split('-')[0],
+                    'rating': show_data.get('rating', {}).get('average'),
+                    'plot': show_data.get('summary', ''),
+                    'genres': show_data.get('genres', []),
+                    'type': 'show',
+                    'status': show_data.get('status'),
+                    'network': show_data.get('network', {}).get('name')
+                }
+                
+                # Download show poster
+                if show_data.get('image', {}).get('original'):
+                    poster_path = self.download_poster(
+                        show_data['image']['original'],
+                        show_name
+                    )
+                    if poster_path:
+                        show_metadata['poster'] = poster_path
+                
+                # Store show metadata
+                show_key = f"show:{show_name}"
+                self.metadata[show_key] = show_metadata
+                
+                # Get episodes data
+                episodes_data = tvmaze.get_show_episodes(show_data['id'])
+                
+                # Process each local episode
+                for season_num, episodes in seasons.items():
+                    for episode in episodes:
+                        episode_number = self._get_episode_number(episode['title'])
+                        if episode_number:
+                            # Find matching episode in TVMaze data
+                            tvmaze_episode = next(
+                                (e for e in episodes_data 
+                                 if e['season'] == int(season_num) 
+                                 and e['number'] == episode_number),
+                                None
+                            )
+                            
+                            if tvmaze_episode:
+                                episode_metadata = {
+                                    'title': tvmaze_episode.get('name'),
+                                    'plot': tvmaze_episode.get('summary', ''),
+                                    'air_date': tvmaze_episode.get('airdate'),
+                                    'season': season_num,
+                                    'episode': episode_number,
+                                    'is_episode': True,
+                                    'show_name': show_name
+                                }
+                                
+                                # Update episode metadata
+                                self.update_metadata(episode['path'], episode_metadata)
+                                
+        except Exception as e:
+            print(f"Error processing show {show_name}: {e}")
+
+    def _finish_metadata_refresh(self):
+        """Complete the metadata refresh by updating UI"""
+        try:
+            # Load updated data
+            self.load_library()
+            
+            # Force layout update by switching views
+            while self.navigation_view.get_visible_page() and \
+                  self.navigation_view.get_visible_page().get_tag() != "main":
+                self.navigation_view.pop()
+            self.navigation_view.pop_to_tag("main")
+            self.populate_ui()
+            
+            # Show success toast
+            toast = Adw.Toast.new(_("Successfully fetched metadata"))
+            toast.set_timeout(3)
+            self.toast_overlay.add_toast(toast)
+            
+            # Force a redraw
+            self.queue_draw()
+            
+        except Exception as e:
+            print(f"Error refreshing UI: {e}")
+        return False
+
+    def _update_progress_safely(self, progress_dialog, text):
+        """Update progress dialog text safely from any thread"""
+        if not progress_dialog or not progress_dialog.get_visible():
+            return
+        GLib.idle_add(lambda: progress_dialog.set_body(text) if progress_dialog.get_visible() else None)
+
     def on_fetch_metadata(self, action, param):
         settings = Gio.Settings.new('space.koyu.videoh')
-
+        
         # Create progress dialog
         progress_dialog = Adw.MessageDialog.new(
             self,
@@ -266,237 +422,56 @@ class VideohWindow(Adw.ApplicationWindow):
             _("Please wait while fetching metadata...")
         )
         
-        # Add a spinner to show activity
         spinner = Gtk.Spinner()
         spinner.start()
         spinner.set_size_request(32, 32)
         spinner.set_margin_top(12)
         spinner.set_margin_bottom(12)
         progress_dialog.set_extra_child(spinner)
-        
-        # Add cancel button
         progress_dialog.add_response("cancel", _("Cancel"))
-        
-        # Present dialog before starting the thread
         progress_dialog.present()
         
         def fetch_metadata_async():
             try:
-                # First ensure we're on the main thread for any GTK operations
-                GLib.idle_add(lambda: progress_dialog.set_visible(True))
-                
-                # Fetch movie metadata using IMDb
+                # Process movies
                 if settings.get_boolean('use-imdb'):
                     imdb = self.get_imdb()
                     if imdb:
-                        # Process movies
                         for movie in self.movies:
-                            # Check if operation was cancelled
                             if not progress_dialog.get_visible():
                                 return
-                            
-                            # Update progress text safely
-                            GLib.idle_add(
-                                lambda m=movie: progress_dialog.set_body(
-                                    _("Processing movie: {}").format(m['title'])
-                                )
-                            )
-                            
-                            try:
-                                # Search for movie
-                                search_results = imdb.search_movie(movie['title'])
-                                if search_results:
-                                    # Get first matching result - handle both object and dict formats
-                                    first_result = search_results[0]
-                                    movie_id = first_result.getID() if hasattr(first_result, 'getID') else first_result.get('movieID')
-                                    
-                                    if movie_id:
-                                        movie_data = imdb.get_movie(movie_id)
-                                        
-                                        # Build metadata
-                                        metadata = {
-                                            'title': movie_data.get('title'),
-                                            'year': movie_data.get('year'),
-                                            'rating': movie_data.get('rating'),
-                                            'plot': movie_data.get('plot outline', ''),
-                                            'director': [p['name'] for p in movie_data.get('director', [])],
-                                            'cast': [p['name'] for p in movie_data.get('cast', [])[:5]],
-                                            'genres': movie_data.get('genres', []),
-                                            'type': 'movie'
-                                        }
-                                        
-                                        # Download poster if available
-                                        if movie_data.get('full-size cover url'):
-                                            poster_path = self.download_poster(
-                                                movie_data['full-size cover url'],
-                                                movie['title']
-                                            )
-                                            if poster_path:
-                                                metadata['poster'] = poster_path
-                                        
-                                        # Update metadata
-                                        self.update_metadata(movie['path'], metadata)
-                            except Exception as e:
-                                print(f"Error processing movie {movie['title']}: {e}")
-                                continue
-                                
-                # Fetch TV show metadata using TVMaze            
+                            self._update_progress_safely(progress_dialog, _("Processing movie: {}").format(movie['title']))
+                            self._fetch_movie_metadata(imdb, movie, progress_dialog)
+
+                # Process TV shows
                 if settings.get_boolean('use-tvmaze'):
                     tvmaze = self.get_tvmaze()
                     if tvmaze:
-                        # Process shows
                         for show_name, seasons in self.shows.items():
-                            # Check if operation was cancelled
-                            if progress_dialog.get_visible() is False:
+                            if not progress_dialog.get_visible():
                                 return
-                                
-                            GLib.idle_add(
-                                progress_dialog.set_body,
-                                _("Processing show: {}").format(show_name)
-                            )
-                            
-                            try:
-                                # Search for show
-                                search_results = tvmaze.search_shows(show_name)
-                                if search_results:
-                                    show_data = search_results[0]['show']
-                                    
-                                    # Build show metadata
-                                    show_metadata = {
-                                        'title': show_data.get('name'),
-                                        'year': show_data.get('premiered', '').split('-')[0],
-                                        'rating': show_data.get('rating', {}).get('average'),
-                                        'plot': show_data.get('summary', ''),
-                                        'genres': show_data.get('genres', []),
-                                        'type': 'show',
-                                        'status': show_data.get('status'),
-                                        'network': show_data.get('network', {}).get('name')
-                                    }
-                                    
-                                    # Download show poster
-                                    if show_data.get('image', {}).get('original'):
-                                        poster_path = self.download_poster(
-                                            show_data['image']['original'],
-                                            show_name
-                                        )
-                                        if poster_path:
-                                            show_metadata['poster'] = poster_path
-                                    
-                                    # Store show metadata
-                                    show_key = f"show:{show_name}"
-                                    self.metadata[show_key] = show_metadata
-                                    
-                                    # Get episodes data
-                                    episodes_data = tvmaze.get_show_episodes(show_data['id'])
-                                    
-                                    # Process each local episode
-                                    for season_num, episodes in seasons.items():
-                                        for episode in episodes:
-                                            episode_number = self._get_episode_number(episode['title'])
-                                            if episode_number:
-                                                # Find matching episode in TVMaze data
-                                                tvmaze_episode = next(
-                                                    (e for e in episodes_data 
-                                                     if e['season'] == int(season_num) 
-                                                     and e['number'] == episode_number),
-                                                    None
-                                                )
-                                                
-                                                if tvmaze_episode:
-                                                    episode_metadata = {
-                                                        'title': tvmaze_episode.get('name'),
-                                                        'plot': tvmaze_episode.get('summary', ''),
-                                                        'air_date': tvmaze_episode.get('airdate'),
-                                                        'season': season_num,
-                                                        'episode': episode_number,
-                                                        'is_episode': True,
-                                                        'show_name': show_name
-                                                    }
-                                                    
-                                                    # Update episode metadata
-                                                    self.update_metadata(episode['path'], episode_metadata)
-                        
-                            except Exception as e:
-                                print(f"Error processing show {show_name}: {e}")
-                                continue
-                
-                # Save all metadata changes
+                            self._update_progress_safely(progress_dialog, _("Processing show: {}").format(show_name))
+                            self._fetch_show_metadata(tvmaze, show_name, seasons, progress_dialog)
+
+                # Save all metadata
                 self.save_metadata()
                 
-                # Update UI in main thread
+                # Update UI on main thread
                 GLib.idle_add(self._finish_metadata_refresh)
+                GLib.idle_add(progress_dialog.close)
                 
             except Exception as e:
                 GLib.idle_add(self._show_error_dialog, str(e))
             finally:
                 GLib.idle_add(progress_dialog.close)
-        
+
         # Handle dialog response
-        def on_response(dialog, response):
-            if response == "cancel":
-                dialog.close()
+        progress_dialog.connect("response", lambda d, r: d.close() if r == "cancel" else None)
         
-        progress_dialog.connect("response", on_response)
-        progress_dialog.present()
-        
-        # Start metadata fetch in background thread
+        # Start background thread
         thread = threading.Thread(target=fetch_metadata_async)
         thread.daemon = True
         thread.start()
-
-    def _finish_metadata_refresh(self):
-        """Complete the metadata refresh by updating UI"""
-        self.load_library()
-        self.populate_ui()
-        
-        # Show success toast
-        toast = Adw.Toast.new(_("Successfully fetched metadata"))
-        toast.set_timeout(3)
-        self.toast_overlay.add_toast(toast)
-        return False
-
-    def _show_error_dialog(self, error_message):
-        """Show error dialog for metadata fetch failures"""
-        dialog = Adw.MessageDialog.new(
-            self,
-            _("Error"),
-            _("Failed to fetch metadata: {}").format(error_message)
-        )
-        dialog.add_response("ok", _("OK"))
-        dialog.present()
-        return False
-
-    def get_imdb(self):
-        """Initialize IMDb client if enabled in settings"""
-        if self.settings.get_boolean('use-imdb'):
-            try:
-                return IMDb()
-            except Exception as e:
-                dialog = Adw.MessageDialog(
-                    transient_for=self,
-                    heading=_("IMDb Error"),
-                    body=_("Failed to initialize IMDb client: {}").format(str(e))
-                )
-                dialog.add_response("close", _("Close"))
-                dialog.present()
-                return None
-        return None
-
-    def get_tvmaze(self):  # Rename from get_tvdb
-        """Initialize TVMaze client if enabled in settings"""
-        if self.settings.get_boolean('use-tvmaze'):  # Update setting name
-            try:
-                return TVMaze()
-            except Exception as e:
-                dialog = Adw.MessageDialog(
-                    transient_for=self,
-                    heading=_("TVMaze Error"),
-                    body=_("Failed to initialize TVMaze client: {}").format(str(e))
-                )
-                dialog.add_response("close", _("Close"))
-                dialog.present()
-                return None
-        return None
 
     def on_settings(self, action, param):
         settings = VideohPreferencesWindow(transient_for=self)
@@ -757,7 +732,7 @@ class VideohWindow(Adw.ApplicationWindow):
     def _title_matches(self, file_title, imdb_title):
         """Compare file name with IMDb title, ignoring case and special characters"""
         def clean_title(title):
-            return ''.join(c.lower() for c in title if c.isalnum())
+            return ''.join(c for c in title if c.isalnum())
         
         return clean_title(file_title) == clean_title(imdb_title)
 
@@ -780,3 +755,186 @@ class VideohWindow(Adw.ApplicationWindow):
             # Merge show and episode metadata
             return {**show_metadata, **metadata}
         return metadata
+
+    def _show_error_dialog(self, error_message):
+        """Show error dialog for metadata fetch failures"""
+        dialog = Adw.MessageDialog.new(
+            self,
+            _("Error"),
+            _("Failed to fetch metadata: {}").format(error_message)
+        )
+        dialog.add_response("ok", _("OK"))
+        dialog.present()
+        return False
+
+    def get_imdb(self):
+        """Get IMDb API client"""
+        try:
+            return IMDb()
+        except Exception as e:
+            self._show_error_dialog(f"Failed to initialize IMDb client: {e}")
+            return None
+
+    def get_tvmaze(self):
+        """Get TVMaze API client"""
+        try:
+            return TVMaze()
+        except Exception as e:
+            self._show_error_dialog(f"Failed to initialize TVMaze client: {e}")
+            return None
+
+    def on_view_sorting(self, action, param):
+        """Handle sorting action"""
+        sort_type = param.get_string()
+        
+        def sort_items(items, key_func):
+            return sorted(items, key=key_func)
+        
+        if sort_type == 'az':
+            # Sort by title
+            self.movies = sort_items(self.movies, 
+                lambda x: x.get('metadata', {}).get('title', x['title']).lower())
+            self.shows = dict(sorted(self.shows.items(), 
+                key=lambda x: x[0].lower()))
+        
+        elif sort_type == 'year':
+            # Sort by year
+            self.movies = sort_items(self.movies,
+                lambda x: x.get('metadata', {}).get('year', '0'))
+            self.shows = dict(sorted(self.shows.items(),
+                key=lambda x: self.metadata.get(f"show:{x[0]}", {}).get('year', '0')))
+        
+        elif sort_type == 'rating':
+            # Sort by rating
+            self.movies = sort_items(self.movies,
+                lambda x: float(x.get('metadata', {}).get('rating', 0) or 0))
+            self.shows = dict(sorted(self.shows.items(),
+                key=lambda x: float(self.metadata.get(f"show:{x[0]}", {}).get('rating', 0) or 0)))
+        
+        # Update UI with new sorting
+        self.populate_ui()
+
+    def on_show_search_toggled(self, button):
+        """Toggle search bar visibility"""
+        self.search_bar.set_search_mode(button.get_active())
+        if button.get_active():
+            self.search_entry.grab_focus()
+        else:
+            self.search_entry.set_text("")
+
+    def on_search_changed(self, *args):
+        """Handle search text changes"""
+        search_text = self.search_entry.get_text().lower()
+        search_mode = self.search_mode.get_selected()  # 0 for title, 1 for genre
+        
+        # Clear existing content
+        self.movies_box.remove_all()
+        self.shows_box.remove_all()
+        
+        if not search_text:
+            # If search is empty, show all items
+            self.populate_ui()
+            return
+            
+        # Filter movies
+        for movie in self.movies:
+            metadata = movie.get('metadata', {})
+            if search_mode == 0:  # Title search
+                title = metadata.get('title', movie['title']).lower()
+                if search_text in title:
+                    self._add_movie_to_ui(movie)
+            else:  # Genre search
+                genres = [g.lower() for g in metadata.get('genres', [])]
+                if any(search_text in genre for genre in genres):
+                    self._add_movie_to_ui(movie)
+        
+        # Filter shows
+        for show_name, seasons in self.shows.items():
+            show_key = f"show:{show_name}"
+            show_metadata = self.metadata.get(show_key, {})
+            
+            if search_mode == 0:  # Title search
+                if search_text in show_name.lower():
+                    self._add_show_to_ui(show_name, seasons, show_metadata)
+            else:  # Genre search
+                genres = [g.lower() for g in show_metadata.get('genres', [])]
+                if any(search_text in genre for genre in genres):
+                    self._add_show_to_ui(show_name, seasons, show_metadata)
+
+    def _add_movie_to_ui(self, movie):
+        """Helper to add a single movie to the UI"""
+        title = movie.get('metadata', {}).get('title', movie['title'])
+        card = self._create_poster_card(
+            title,
+            movie.get('metadata', {}),
+            lambda _, m=movie: self.show_movie_details(m)
+        )
+        self.movies_box.append(card)
+
+    def _add_show_to_ui(self, show_name, seasons, metadata):
+        """Helper to add a single show to the UI"""
+        card = self._create_poster_card(
+            show_name,
+            metadata,
+            lambda _, s=show_name, seas=seasons: self.show_episodes(s, seas),
+            is_show=True
+        )
+        self.shows_box.append(card)
+
+    def _create_poster_card(self, title, metadata, on_click, is_show=False):
+        """Extract poster card creation to reusable method"""
+        # Move the existing poster card creation code here
+        # This is the code from your populate_ui method's create_poster_card function
+        overlay = Gtk.Overlay()
+        overlay.add_css_class('poster-box')
+        
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        box.add_css_class('card')
+        
+        # Add poster image
+        poster = metadata.get('poster')
+        if poster and Path(poster).exists():
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
+                poster, 200, 300, False)
+            image = Gtk.Picture.new_for_pixbuf(pixbuf)
+        else:
+            # Use different fallback icons for shows and movies
+            icon_name = "video-television" if is_show else "image-missing"
+            image = Gtk.Image.new_from_icon_name(icon_name)
+            image.set_pixel_size(200)
+        
+        image.add_css_class('poster-image')
+        box.append(image)
+        
+        # Add title label
+        label = Gtk.Label(label=title)
+        label.set_wrap(True)
+        label.set_max_width_chars(20)
+        label.set_ellipsize(Pango.EllipsizeMode.END)
+        label.add_css_class('heading')
+        label.add_css_class('poster-label')
+        box.append(label)
+        
+        # Add info button overlay
+        info_button = Gtk.Button()
+        info_button.set_icon_name('info-outline-symbolic' if not is_show else 'view-list-symbolic')
+        info_button.add_css_class('circular')
+        info_button.add_css_class('osd')
+        info_button.set_valign(Gtk.Align.START)
+        info_button.set_halign(Gtk.Align.END)
+        info_button.set_margin_top(6)
+        info_button.set_margin_end(6)
+        
+        # Connect info button click
+        info_button.connect('clicked', on_click)
+        
+        # Add main box and button to overlay
+        overlay.set_child(box)
+        overlay.add_overlay(info_button)
+        
+        # Make box clickable
+        click = Gtk.GestureClick.new()
+        click.connect('pressed', lambda g, n, x, y: on_click(None))
+        box.add_controller(click)
+        
+        return overlay

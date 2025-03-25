@@ -13,7 +13,8 @@
           <object class="AdwNavigationView" id="navigation_view">
             <child>
               <object class="AdwNavigationPage">
-                <property name="title">Videoh</property>
+                <property name="tag">main</property>
+                <property name="title">Vide OH!</property>
                 <child>
                   <object class="AdwToolbarView">
                     <child type="top">
@@ -29,7 +30,7 @@
 
                         <child type="start">
                           <object class="GtkToggleButton" id="show_search_btn">
-                            <property name="icon-name">loupe</property>
+                            <property name="icon-name">system-search-symbolic</property>
                             <property name="tooltip-text" translatable="yes">Show/Hide search bar</property>
                           </object>
                         </child>
@@ -75,7 +76,7 @@
                               <object class="GtkSearchEntry" id="search_entry">
                                 <property name="halign">center</property>
                                 <property name="activates-default">true</property>
-                                <property name="placeholder-text" translatable="yes">Search Your Watchlist</property>
+                                <property name="placeholder-text" translatable="yes">Search</property>
                                 <property name="search-delay">500</property>
                               </object>
                             </child>
@@ -158,21 +159,48 @@
   <menu id="primary_menu">
     <section>
       <item>
-        <attribute name="label" translatable="yes">A-Z</attribute>
+        <attribute name="label" translatable="yes">Sort A-Z</attribute>
         <attribute name="action">win.view-sorting</attribute>
         <attribute name="target">az</attribute>
       </item>
-      <!-- Add other sorting options -->
+      <item>
+        <attribute name="label" translatable="yes">Sort by Year</attribute>
+        <attribute name="action">win.view-sorting</attribute>
+        <attribute name="target">year</attribute>
+      </item>
+      <item>
+        <attribute name="label" translatable="yes">Sort by Rating</attribute>
+        <attribute name="action">win.view-sorting</attribute>
+        <attribute name="target">rating</attribute>
+      </item>
     </section>
     <section>
       <item>
-        <attribute name="label" translatable="yes">_Refresh</attribute>
-        <attribute name="action">win.refresh</attribute>
+        <attribute name="label" translatable="yes">_Refresh Metadata</attribute>
+        <attribute name="action">win.fetch-metadata</attribute>
         <attribute name="icon">view-refresh-symbolic</attribute>
       </item>
       <item>
+        <attribute name="label" translatable="yes">_Open Videos Folder</attribute>
+        <attribute name="action">win.open-folder</attribute>
+        <attribute name="icon">folder-symbolic</attribute>
+      </item>
+    </section>
+    <section>
+      <item>
+        <attribute name="label" translatable="yes">_Help</attribute>
+        <attribute name="action">win.help</attribute>
+        <attribute name="icon">help-about-symbolic</attribute>
+      </item>
+      <item>
         <attribute name="label" translatable="yes">_Preferences</attribute>
-        <attribute name="action">app.preferences</attribute>
+        <attribute name="action">win.settings</attribute>
+        <attribute name="icon">preferences-system-symbolic</attribute>
+      </item>
+      <item>
+        <attribute name="label" translatable="yes">_About</attribute>
+        <attribute name="action">win.about</attribute>
+        <attribute name="icon">help-about-symbolic</attribute>
       </item>
     </section>
   </menu>

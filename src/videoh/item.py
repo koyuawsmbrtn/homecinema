@@ -7,6 +7,7 @@ from pathlib import Path
 from gettext import gettext as _
 import html
 import datetime
+import re
 
 @Gtk.Template(resource_path='/space/koyu/videoh/item.ui')
 class VideohItem(Gtk.Box):
@@ -46,26 +47,32 @@ class VideohItem(Gtk.Box):
             
             if is_episode:
                 # Episode specific formatting
-                show_title = self.metadata.get('show_title', '')
-                season_num = self.metadata.get('season_number', '')
-                episode_title = self.metadata.get('episode_title', '')
-                title = f"{show_title} - S{season_num:02d} - {episode_title}"
+                show_name = self.metadata.get('show_name', '')
+                season = self.metadata.get('season', '')
+                episode = self.metadata.get('episode', '')
+                title = self.metadata.get('title', '')
                 
-                # Get air date and calculate year
+                # Format episode title
+                if title:
+                    title = f"{show_name} - S{int(season):02d}E{int(episode):02d} - {title}"
+                else:
+                    title = f"{show_name} - S{int(season):02d}E{int(episode):02d}"
+                
+                # Get air date
                 air_date = self.metadata.get('air_date', '')
-                year = ''
-                if air_date:
-                    try:
-                        year = datetime.datetime.strptime(air_date, '%Y-%m-%d').year
-                    except ValueError:
-                        print(f"Error parsing air date: {air_date}")
+                year = air_date.split('-')[0] if air_date else ''
             else:
-                # Movie formatting
+                # Movie formatting 
                 title = html.unescape(self.metadata.get('title', ''))
                 year = self.metadata.get('year', '')
 
             # Common metadata
-            plot = html.unescape(self.metadata.get('plot', ''))
+            plot = self.metadata.get('plot', '')
+            if plot:
+                # Clean HTML and unescape
+                plot = re.sub(r'<[^>]+>', '', plot)
+                plot = html.unescape(plot)
+                
             genres = self.metadata.get('genres', [])
             rating = self.metadata.get('rating', '')
             
@@ -78,10 +85,10 @@ class VideohItem(Gtk.Box):
             self.plot_label.set_label(plot)
             self.genre_label.set_label(', '.join(genres))
             
-            # Load poster
+            # Update poster
             self.load_poster()
             
-            # Update cast/crew
+            # Update people
             self.update_person_images()
 
         except Exception as e:
@@ -102,16 +109,28 @@ class VideohItem(Gtk.Box):
         """Update cast and crew images"""
         try:
             # Clear existing
-            while (child := self.cast_flowbox.get_first_child()):
-                self.cast_flowbox.remove(child)
+            for flowbox in [self.cast_flowbox, self.directors_flowbox]:
+                while (child := flowbox.get_first_child()):
+                    flowbox.remove(child)
 
-            # Add cast
+            # Add cast members
             cast = self.metadata.get('cast', [])
-            cast_images = self.metadata.get('cast_images', [])
-            if cast and cast_images and len(cast) == len(cast_images):
-                for name, image_path in zip(cast, cast_images):
-                    if image_path and Path(image_path).exists():
-                        self.add_person_image(name, image_path, self.cast_flowbox)
+            for person in cast:
+                if isinstance(person, dict):
+                    name = person.get('name', '')
+                    image = person.get('image')
+                    if name:
+                        self.add_person_image(name, image, self.cast_flowbox)
+
+            # Add directors
+            directors = self.metadata.get('director', [])
+            if isinstance(directors, list):
+                for director in directors:
+                    if isinstance(director, dict):
+                        name = director.get('name', '')
+                        image = director.get('image')
+                        if name:
+                            self.add_person_image(name, image, self.directors_flowbox)
 
         except Exception as e:
             print(f"Error updating person images: {e}")
