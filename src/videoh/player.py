@@ -6,6 +6,7 @@ gi.require_version('Adw', '1')
 from gi.repository import Gtk, GObject, Gst, GstVideo, Adw, Gio, GLib, Gdk
 from pathlib import Path
 import json
+import os
 
 @Gtk.Template(resource_path='/space/koyu/videoh/player.ui')
 class VideohPlayer(Adw.Window):
@@ -123,6 +124,15 @@ class VideohPlayer(Adw.Window):
         GLib.idle_add(lambda: self.volume_scale.set_value(1.0))  # Set default volume after widget is realized
         self.volume_scale.connect('value-changed', self.on_volume_changed)
 
+        self.config_dir = os.path.expanduser('~/.config/videoh')
+        self.timestamps_file = os.path.join(self.config_dir, 'timestamps.json')
+        
+        # Create config directory if it doesn't exist
+        os.makedirs(self.config_dir, exist_ok=True)
+        
+        # Load previous timestamp if exists
+        self.load_timestamp()
+
     def on_message(self, bus, message):
         t = message.type
         if t == Gst.MessageType.EOS:
@@ -191,6 +201,7 @@ class VideohPlayer(Adw.Window):
         return True
         
     def do_close_request(self):
+        self.save_timestamp()
         self.playbin.set_state(Gst.State.NULL)
         return False
 
@@ -229,3 +240,40 @@ class VideohPlayer(Adw.Window):
     def on_volume_changed(self, scale):
         volume = scale.get_value()
         self.playbin.set_property('volume', volume)
+
+    def load_timestamp(self):
+        try:
+            if os.path.exists(self.timestamps_file):
+                with open(self.timestamps_file, 'r') as f:
+                    timestamps = json.load(f)
+                    if self.path in timestamps:
+                        position = timestamps[self.path]
+                        # Seek to saved position after a short delay
+                        GLib.timeout_add(500, self.restore_position, position)
+        except Exception as e:
+            print(f"Error loading timestamp: {e}")
+
+    def restore_position(self, position):
+        self.playbin.seek_simple(
+            Gst.Format.TIME,
+            Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
+            int(position * Gst.SECOND)
+        )
+        return False
+
+    def save_timestamp(self):
+        try:
+            timestamps = {}
+            if os.path.exists(self.timestamps_file):
+                with open(self.timestamps_file, 'r') as f:
+                    timestamps = json.load(f)
+            
+            success, position = self.playbin.query_position(Gst.Format.TIME)
+            if success:
+                position = position / Gst.SECOND
+                timestamps[self.path] = position
+                
+                with open(self.timestamps_file, 'w') as f:
+                    json.dump(timestamps, f)
+        except Exception as e:
+            print(f"Error saving timestamp: {e}")
