@@ -70,6 +70,7 @@ class VideohItem(Gtk.Box):
     cast_flowbox = Gtk.Template.Child()
     cast_group = Gtk.Template.Child()
     directors_group = Gtk.Template.Child()
+    people_group = Gtk.Template.Child()
 
     def __init__(self, window, movie_data, **kwargs):
         super().__init__(**kwargs)
@@ -268,6 +269,18 @@ class VideohItem(Gtk.Box):
         """Set the poster image"""
         self.poster_image.set_pixbuf(pixbuf)
 
+    def _update_people_section_visibility(self):
+        """Update visibility of the people section based on content"""
+        has_cast = self.cast_flowbox.get_first_child() is not None
+        has_directors = self.directors_flowbox.get_first_child() is not None
+        
+        # Show/hide individual groups
+        self.cast_group.set_visible(has_cast)
+        self.directors_group.set_visible(has_directors)
+        
+        # Show/hide the main people group
+        self.people_group.set_visible(has_cast or has_directors)
+
     def clear_cast(self):
         """Remove all cast members from the flowbox"""
         while True:
@@ -275,17 +288,13 @@ class VideohItem(Gtk.Box):
             if child is None:
                 break
             self.cast_flowbox.remove(child)
-        # Hide cast group if it exists
-        if hasattr(self, 'cast_group'):
-            self.cast_group.set_visible(False)
+        self._update_people_section_visibility()
 
     def add_cast_member(self, name, image_path):
         """Add a cast member to the flowbox"""
         person = PersonWidget(name, image_path)
         self.cast_flowbox.append(person)
-        # Show cast group if it exists
-        if hasattr(self, 'cast_group'):
-            self.cast_group.set_visible(True)
+        self._update_people_section_visibility()
 
     def clear_directors(self):
         """Remove all directors from the flowbox"""
@@ -294,14 +303,10 @@ class VideohItem(Gtk.Box):
             if child is None:
                 break
             self.directors_flowbox.remove(child)
-        # Hide directors group if it exists
-        if hasattr(self, 'directors_group'):
-            self.directors_group.set_visible(False)
+        self._update_people_section_visibility()
 
     def add_director(self, name, image_path):
         """Add a director to the flowbox"""
         person = PersonWidget(name, image_path)
         self.directors_flowbox.append(person)
-        # Show directors group if it exists
-        if hasattr(self, 'directors_group'):
-            self.directors_group.set_visible(True)
+        self._update_people_section_visibility()
