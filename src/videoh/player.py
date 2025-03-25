@@ -19,7 +19,7 @@ class VideohPlayer(Adw.Window):
     time_label = Gtk.Template.Child()
     fullscreen_button = Gtk.Template.Child()
 
-    def __init__(self, parent, path):
+    def __init__(self, parent, path, title=None, show_metadata=None):
         super().__init__()
         
         self.parent = parent
@@ -29,6 +29,25 @@ class VideohPlayer(Adw.Window):
         
         # Set transient for parent
         self.set_transient_for(parent)
+        
+        # Set window title
+        if title:
+            if show_metadata:
+                season = show_metadata['season']
+                episode = show_metadata['episode']
+                if int(season) < 10:
+                    season = f"0{season}"
+                if int(episode) < 10:
+                    episode = f"0{episode}"
+                if season and episode:
+                    self.set_title(f"{title} - S{season}E{episode}")
+                else:
+                    self.set_title(title)
+            else:
+                self.set_title(title)
+        else:
+            # Use filename as title if none provided
+            self.set_title(Path(path).stem)
         
         # Initialize GStreamer if needed
         if not Gst.is_initialized():

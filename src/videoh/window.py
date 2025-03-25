@@ -906,14 +906,16 @@ class VideohWindow(Adw.ApplicationWindow):
         if n_press == 1:  # Only respond to single clicks
             self.show_movie_details(movie)
 
-    def show_video(self, video_path, name):
-        """Show video in player view"""
-        player_view = VideohPlayer(self, video_path)
-        page = Adw.NavigationPage(
-            title=name,
-            child=player_view
-        )
-        self.navigation_view.push(page)
+    def show_video(self, path, title=None, show_metadata=None):
+        """Show video in player window
+        
+        Args:
+            path (str): Path to video file
+            title (str, optional): Title to display. Defaults to None.
+            show_metadata (dict, optional): Show metadata for episodes. Defaults to None.
+        """
+        player = VideohPlayer(self, path, title, show_metadata)
+        player.present()
 
     def show_episodes(self, show_name, seasons):
         """Show episodes list for a TV show"""

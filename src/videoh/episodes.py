@@ -251,7 +251,7 @@ class EpisodesUI(Gtk.Box):
             play_button.add_css_class('circular')
             play_button.add_css_class('flat')
             play_button.connect('clicked', 
-                lambda b, e: self.parent_window.show_video(e['path'], episode_title), 
+                lambda b, e: self.on_episode_clicked(episode), 
                 episode)
             row.add_suffix(play_button)
             
@@ -266,6 +266,15 @@ class EpisodesUI(Gtk.Box):
             season_text = dropdown.get_model().get_string(selected)
             season_num = season_text.split()[-1]
             self.populate_season(season_num)
+
+    def on_episode_clicked(self, episode):
+        print(f"Playing episode: {episode}")
+        show_metadata = episode["metadata"]
+        self.parent_window.show_video(
+            episode['path'],
+            title=self.show_title.get_label() + " - " + episode['metadata']['title'],
+            show_metadata=show_metadata
+        )
 
 class RoundedPicture(Gtk.DrawingArea):
     def __init__(self):
