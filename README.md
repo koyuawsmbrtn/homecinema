@@ -14,3 +14,4 @@ This is a video player for all your movies and shows using GTK. Written in Pytho
 - [ ] MPRIS support
 - [ ] Fix crashes when scraping
 - [ ] Fix a few buttons doing nothing
+- [ ] Fix cast/staff scraping
