@@ -208,7 +208,23 @@ class VideohPlayer(Adw.Window):
         elif keyval == Gdk.KEY_space:  # Handle spacebar for play/pause
             self.on_play(None)
             return True
+        elif keyval == Gdk.KEY_Right:  # Skip forward 10 seconds
+            self.skip(10)
+            return True
+        elif keyval == Gdk.KEY_Left:  # Rewind 10 seconds
+            self.skip(-10)
+            return True
         return False
+
+    def skip(self, seconds):
+        success, position = self.playbin.query_position(Gst.Format.TIME)
+        if success:
+            new_position = position + (seconds * Gst.SECOND)
+            self.playbin.seek_simple(
+                Gst.Format.TIME,
+                Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
+                max(new_position, 0)
+            )
 
     def on_volume_changed(self, scale):
         volume = scale.get_value()

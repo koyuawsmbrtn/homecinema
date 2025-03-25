@@ -184,13 +184,6 @@ class EpisodesUI(Gtk.Box):
             row = Adw.ActionRow()
             row.add_css_class('episode-row')  # Add class for hover styling
             
-            # Make entire row clickable
-            click = Gtk.GestureClick.new()
-            click.connect('pressed', 
-                lambda g, n, x, y, e: self.parent_window.show_movie_details(e), 
-                episode)
-            row.add_controller(click)
-            
             # Add episode number button on the left
             ep_button = Gtk.Button()
             ep_button.set_label(str(ep_num))
