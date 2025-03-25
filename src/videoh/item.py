@@ -3,32 +3,124 @@ import subprocess
 from pathlib import Path
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
-from gi.repository import Gtk, Adw, GObject, Gio, GLib, GdkPixbuf, Gdk
+from gi.repository import Gtk, Adw, GObject, Gio, GLib, GdkPixbuf, Gdk, Gsk, Graphene
+
+# First, add this CSS to the parent window's CSS provider (in the main window class):
+css_string = """
+.avatar-image {
+    border-radius: 9999px;
+    background: alpha(@window_fg_color, 0.1);
+    overflow: hidden;  /* Ensure content is clipped to circle */
+    margin: 6px;
+}
+
+.avatar-image picture {
+    margin: 0;
+}
+
+.avatar-image picture image {
+    object-fit: cover;  /* Make image cover the container */
+}
+
+.person-name {
+    font-size: 0.9em;
+    margin-top: 6px;
+}
+
+flowbox {
+    padding: 6px;
+}
+
+flowbox > flowboxchild {
+    padding: 6px;
+    min-height: 100px;  /* Ensure enough height for avatar + label */
+}
+"""
+
+class AvatarPicture(Gtk.DrawingArea):
+    def __init__(self, size=60):
+        super().__init__()
+        self.size = size
+        self.set_size_request(size, size)
+        self.set_draw_func(self._draw)
+        self.pixbuf = None
+        
+    def set_image(self, path):
+        if path and Path(path).exists():
+            self.pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
+                path,
+                self.size,
+                self.size,
+                False
+            )
+        else:
+            # Load default avatar icon
+            icon_theme = Gtk.IconTheme.get_for_display(Gdk.Display.get_default())
+            self.pixbuf = icon_theme.load_icon(
+                "avatar-default-symbolic",
+                48,
+                Gtk.IconLookupFlags.FORCE_SYMBOLIC
+            )
+        self.queue_draw()
+
+    def _draw(self, area, cr, width, height):
+        if not self.pixbuf:
+            return
+
+        # Create a circular clip path
+        cr.arc(width/2, height/2, width/2, 0, 2 * 3.14159)
+        cr.clip()
+        
+        # Draw background
+        cr.set_source_rgba(0.5, 0.5, 0.5, 0.1)
+        cr.paint()
+        
+        # Calculate scaling to cover the circle while maintaining aspect ratio
+        scale_x = width / self.pixbuf.get_width()
+        scale_y = height / self.pixbuf.get_height()
+        scale = max(scale_x, scale_y)  # Use the larger scale to ensure coverage
+        
+        # Calculate translation to center the image
+        scaled_width = self.pixbuf.get_width() * scale
+        scaled_height = self.pixbuf.get_height() * scale
+        x_offset = (width - scaled_width) / 2
+        y_offset = (height - scaled_height) / 2
+        
+        # Apply transformation
+        cr.scale(scale, scale)
+        cr.translate(x_offset/scale, y_offset/scale)
+        
+        # Draw the image
+        Gdk.cairo_set_source_pixbuf(cr, self.pixbuf, 0, 0)
+        cr.paint()
 
 class PersonWidget(Gtk.Box):
     def __init__(self, name, image_path):
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        self.set_hexpand(False)
+        self.set_vexpand(False)
+        self.set_margin_start(6)
+        self.set_margin_end(6)
+        self.set_margin_top(6)
+        self.set_margin_bottom(6)
         
-        self.name = name  # Store name for later access
+        self.name = name
         
-        # Create image
-        self.image = Gtk.Picture()
-        if image_path and Path(image_path).exists():
-            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(image_path, 60, 60)
-            self.image.set_pixbuf(pixbuf)
-        else:
-            # Create default avatar using Image widget instead of Picture
-            self.image = Gtk.Image.new_from_icon_name("avatar-default-symbolic")
-            self.image.set_pixel_size(60)
-        
-        self.image.set_size_request(60, 60)
+        # Create avatar picture
+        self.avatar = AvatarPicture(60)
+        self.avatar.set_margin_top(6)
+        self.avatar.set_margin_bottom(6)
+        self.avatar.set_halign(Gtk.Align.CENTER)
+        self.avatar.set_image(image_path)
         
         # Create label
         self.label = Gtk.Label(label=name)
         self.label.set_wrap(True)
         self.label.set_max_width_chars(15)
+        self.label.set_halign(Gtk.Align.CENTER)
+        self.label.add_css_class('person-name')
         
-        self.append(self.image)
+        self.append(self.avatar)
         self.append(self.label)
 
     def get_name(self):
