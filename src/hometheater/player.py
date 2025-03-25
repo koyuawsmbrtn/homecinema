@@ -191,10 +191,26 @@ class HomeTheaterPlayer(Adw.Window):
             position = position / Gst.SECOND
             self.position_scale.set_value(position)
             
-            # Update time label
-            pos_str = f"{int(position/60):02d}:{int(position%60):02d}"
+            # Update time label with hours support
+            hours_pos = int(position // 3600)
+            mins_pos = int((position % 3600) // 60)
+            secs_pos = int(position % 60)
+            
+            if hours_pos > 0:
+                pos_str = f"{hours_pos}:{mins_pos:02d}:{secs_pos:02d}"
+            else:
+                pos_str = f"{mins_pos:02d}:{secs_pos:02d}"
+            
             if self.duration > 0:
-                dur_str = f"{int(self.duration/60):02d}:{int(self.duration%60):02d}"
+                hours_dur = int(self.duration // 3600)
+                mins_dur = int((self.duration % 3600) // 60)
+                secs_dur = int(self.duration % 60)
+                
+                if hours_dur > 0:
+                    dur_str = f"{hours_dur}:{mins_dur:02d}:{secs_dur:02d}"
+                else:
+                    dur_str = f"{mins_dur:02d}:{secs_dur:02d}"
+                    
                 self.time_label.set_label(f"{pos_str} / {dur_str}")
             else:
                 self.time_label.set_label(pos_str)
