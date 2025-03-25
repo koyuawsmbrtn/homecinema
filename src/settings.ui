@@ -14,6 +14,7 @@
             <child>
               <object class="AdwActionRow">
                 <property name="title" translatable="yes">IMDB</property>
+                <property name="subtitle" translatable="yes">Use IMDB as a metadata source to fetch data about movies</property>
                 <child>
                   <object class="GtkSwitch" id="imdb_switch">
                     <property name="valign">center</property>
@@ -24,6 +25,7 @@
             <child>
               <object class="AdwActionRow">
                 <property name="title" translatable="yes">TVmaze</property>
+                <property name="subtitle" translatable="yes">Use TVmaze as a metadata source to fetch data about TV shows</property>
                 <child>
                   <object class="GtkSwitch" id="tvmaze_switch">
                     <property name="valign">center</property>
@@ -34,8 +36,20 @@
             <child>
               <object class="AdwActionRow">
                 <property name="title" translatable="yes">MyAnimeList</property>
+                <property name="subtitle" translatable="yes">Use MyAnimeList as a metadata source to fetch data about anime</property>
                 <child>
                   <object class="GtkSwitch" id="mal_switch">
+                    <property name="valign">center</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwActionRow">
+                <property name="title" translatable="yes">Wikipedia</property>
+                <property name="subtitle" translatable="yes">Use Wikipedia as a metadata source to fetch data about actors</property>
+                <child>
+                  <object class="GtkSwitch" id="wikipedia_switch">
                     <property name="valign">center</property>
                   </object>
                 </child>
@@ -48,13 +62,51 @@
             <property name="title" translatable="yes">Auto-fetch</property>
             <child>
               <object class="AdwActionRow">
-                <property name="title" translatable="yes">Enable auto-fetch</property>
-                <property name="subtitle" translatable="yes">Automatically fetch metadata when starting the application</property>
-                <child>
-                  <object class="GtkSwitch" id="auto_fetch_switch">
-                    <property name="valign">center</property>
-                  </object>
-                </child>
+          <property name="title" translatable="yes">Enable auto-fetch</property>
+          <property name="subtitle" translatable="yes">Automatically fetch metadata when starting the application</property>
+          <child>
+            <object class="GtkSwitch" id="auto_fetch_switch">
+              <property name="valign">center</property>
+            </object>
+          </child>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="AdwPreferencesGroup">
+            <property name="title" translatable="yes">Danger Zone</property>
+            <style>
+              <class name="danger"/>
+            </style>
+            <child>
+              <object class="AdwActionRow">
+          <property name="title" translatable="yes">Clear Metadata</property>
+          <property name="subtitle" translatable="yes">Delete all stored metadata information</property>
+          <child>
+            <object class="GtkButton" id="clear_metadata_button">
+              <property name="valign">center</property>
+              <property name="label">Clear</property>
+              <style>
+                <class name="destructive-action"/>
+              </style>
+            </object>
+          </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwActionRow">
+          <property name="title" translatable="yes">Clear Image Cache</property>
+          <property name="subtitle" translatable="yes">Delete all cached images</property>
+          <child>
+            <object class="GtkButton" id="clear_cache_button">
+              <property name="valign">center</property>
+              <property name="label">Clear</property>
+              <style>
+                <class name="destructive-action"/>
+              </style>
+            </object>
+          </child>
               </object>
             </child>
           </object>

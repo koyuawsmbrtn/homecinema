@@ -16,6 +16,11 @@
       <summary>Use TVmaze</summary>
       <description>Whether to use TVmaze as a metadata source</description>
     </key>
+    <key name="use-wikipedia" type="b">
+      <default>false</default>
+      <summary>Use Wikipedia</summary>
+      <description>Whether to use Wikipedia as a metadata source</description>
+    </key>
     <key name="auto-fetch" type="b">
       <default>false</default>
       <summary>Auto-fetch metadata</summary>

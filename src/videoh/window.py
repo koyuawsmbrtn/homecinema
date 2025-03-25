@@ -40,24 +40,36 @@ import threading
 class VideohPreferencesWindow(Adw.PreferencesWindow):
     __gtype_name__ = 'VideohPreferencesWindow'
     
+    # Define all template children
     imdb_switch = Gtk.Template.Child()
     tvmaze_switch = Gtk.Template.Child()
     mal_switch = Gtk.Template.Child()
+    wikipedia_switch = Gtk.Template.Child()
     auto_fetch_switch = Gtk.Template.Child()
+    clear_metadata_button = Gtk.Template.Child()
+    clear_cache_button = Gtk.Template.Child()
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.settings = Gio.Settings.new('space.koyu.videoh')
         
+        # Set up switches
         self.imdb_switch.set_active(self.settings.get_boolean('use-imdb'))
-        self.tvmaze_switch.set_active(self.settings.get_boolean('use-tvmaze'))  # Update setting name
+        self.tvmaze_switch.set_active(self.settings.get_boolean('use-tvmaze'))
         self.mal_switch.set_active(self.settings.get_boolean('use-mal'))
+        self.wikipedia_switch.set_active(self.settings.get_boolean('use-wikipedia'))
         self.auto_fetch_switch.set_active(self.settings.get_boolean('auto-fetch'))
         
+        # Connect switch signals
         self.imdb_switch.connect('notify::active', self.on_imdb_switch_active)
-        self.tvmaze_switch.connect('notify::active', self.on_tvmaze_switch_active)  # Update method name
+        self.tvmaze_switch.connect('notify::active', self.on_tvmaze_switch_active)
         self.mal_switch.connect('notify::active', self.on_mal_switch_active)
+        self.wikipedia_switch.connect('notify::active', self.on_wikipedia_switch_active)
         self.auto_fetch_switch.connect('notify::active', self.on_auto_fetch_switch_active)
+        
+        # Connect button signals using connect_after to ensure template is fully loaded
+        self.clear_metadata_button.connect_after('clicked', self.on_clear_metadata_clicked)
+        self.clear_cache_button.connect_after('clicked', self.on_clear_cache_clicked)
     
     def on_imdb_switch_active(self, switch, _):
         self.settings.set_boolean('use-imdb', switch.get_active())
@@ -68,8 +80,105 @@ class VideohPreferencesWindow(Adw.PreferencesWindow):
     def on_mal_switch_active(self, switch, _):
         self.settings.set_boolean('use-mal', switch.get_active())
     
+    def on_wikipedia_switch_active(self, switch, _):
+        self.settings.set_boolean('use-wikipedia', switch.get_active())
+    
     def on_auto_fetch_switch_active(self, switch, _):
         self.settings.set_boolean('auto-fetch', switch.get_active())
+
+    def on_clear_metadata_clicked(self, button):
+        """Handle clear metadata button click"""
+        dialog = Adw.MessageDialog.new(
+            self,
+            _("Clear Metadata"),
+            _("Are you sure you want to clear all metadata? This cannot be undone.")
+        )
+        dialog.add_response("cancel", _("Cancel"))
+        dialog.add_response("clear", _("Clear"))
+        dialog.set_response_appearance("clear", Adw.ResponseAppearance.DESTRUCTIVE)
+        
+        def on_response(dialog, response):
+            if response == "clear":
+                try:
+                    # Get reference to main window
+                    window = self.get_transient_for()
+                    if window:
+                        # Clear metadata dictionary
+                        window.metadata = {}
+                        # Save empty metadata file
+                        window.save_metadata()
+                        # Reload library and UI
+                        window.load_library()
+                        window.populate_ui()
+                        # Show success toast
+                        toast = Adw.Toast.new(_("Metadata cleared successfully"))
+                        toast.set_timeout(3)
+                        window.toast_overlay.add_toast(toast)
+                except Exception as e:
+                    error_dialog = Adw.MessageDialog.new(
+                        self,
+                        _("Error"),
+                        _("Failed to clear metadata: {}").format(str(e))
+                    )
+                    error_dialog.add_response("ok", _("OK"))
+                    error_dialog.present()
+            dialog.destroy()
+            
+        dialog.connect("response", on_response)
+        dialog.present()
+
+    def on_clear_cache_clicked(self, button):
+        """Handle clear cache button click"""
+        dialog = Adw.MessageDialog.new(
+            self,
+            _("Clear Cache"),
+            _("Are you sure you want to clear all cached images? This cannot be undone.")
+        )
+        dialog.add_response("cancel", _("Cancel"))
+        dialog.add_response("clear", _("Clear"))
+        dialog.set_response_appearance("clear", Adw.ResponseAppearance.DESTRUCTIVE)
+        
+        def on_response(dialog, response):
+            if response == "clear":
+                try:
+                    window = self.get_transient_for()
+                    if window:
+                        # Clear all cache directories
+                        cache_dirs = [
+                            window.cache_dir / "posters",
+                            window.cache_dir / "cast",
+                            window.cache_dir / "directors"
+                        ]
+                        
+                        for cache_dir in cache_dirs:
+                            if cache_dir.exists():
+                                for file in cache_dir.iterdir():
+                                    if file.is_file():
+                                        file.unlink()
+                                cache_dir.rmdir()
+                        
+                        # Recreate cache directories
+                        window.setup_directories()
+                        
+                        # Reload UI to show default images
+                        window.populate_ui()
+                        
+                        # Show success toast
+                        toast = Adw.Toast.new(_("Cache cleared successfully"))
+                        toast.set_timeout(3)
+                        window.toast_overlay.add_toast(toast)
+                except Exception as e:
+                    error_dialog = Adw.MessageDialog.new(
+                        self,
+                        _("Error"),
+                        _("Failed to clear cache: {}").format(str(e))
+                    )
+                    error_dialog.add_response("ok", _("OK"))
+                    error_dialog.present()
+            dialog.destroy()
+            
+        dialog.connect("response", on_response)
+        dialog.present()
 
 @Gtk.Template(resource_path='/space/koyu/videoh/window.ui')
 class VideohWindow(Adw.ApplicationWindow):
@@ -595,15 +704,54 @@ class VideohWindow(Adw.ApplicationWindow):
                 self.shows_box.append(card)
 
     def show_movie_details(self, movie):
+        """Show movie details in a new navigation page"""
         # Create item view using template
-        item_view = VideohItem(self, movie)
+        item = VideohItem(window=self, movie_data=movie)
         
-        # Create navigation page
-        page = Adw.NavigationPage(
-            title=movie.get('metadata', {}).get('title', movie['title']),
-            child=item_view
+        # Load metadata
+        metadata = movie.get('metadata', {})
+        item.update_metadata(
+            title=metadata.get('title', movie['title']),
+            year=metadata.get('year', ''),
+            plot=metadata.get('plot', ''),
+            genres=metadata.get('genres', [])
         )
         
+        # Set video path for playback
+        item.video_path = movie['path']
+        
+        # Set poster if available
+        if 'poster' in metadata and Path(metadata['poster']).exists():
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(metadata['poster'], 100, 150)
+            item.set_poster(pixbuf)
+        
+        # Load cast and crew
+        item.clear_cast()
+        for cast_member in metadata.get('cast', []):
+            image_path = self.download_person_image(
+                metadata.get('cast_images', {}).get(cast_member),
+                cast_member,
+                'cast'
+            )
+            item.add_cast_member(cast_member, image_path)
+        
+        item.clear_directors()
+        for director in metadata.get('director', []):
+            image_path = self.download_person_image(
+                metadata.get('director_images', {}).get(director),
+                director,
+                'directors'
+            )
+            item.add_director(director, image_path)
+        
+        # Create and push navigation page
+        page = Adw.NavigationPage(
+            title=metadata.get('title', movie['title']),
+            child=item
+        )
+        # Use unique tag based on movie path
+        page_tag = f"movie_details_{movie['path']}"
+        page.set_tag(page_tag)
         self.navigation_view.push(page)
 
     def edit_metadata(self, movie, key, current_value):
