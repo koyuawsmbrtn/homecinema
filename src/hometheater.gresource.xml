@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gresources>
-  <gresource prefix="/space/koyu/videoh">
+  <gresource prefix="/space/koyu/hometheater">
     <file preprocess="xml-stripblanks">window.ui</file>
     <file preprocess="xml-stripblanks">settings.ui</file>
     <file preprocess="xml-stripblanks">item.ui</file>

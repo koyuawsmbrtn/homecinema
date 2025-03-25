@@ -1,9 +1,9 @@
 {
-    "app-id": "space.koyu.videoh",
+    "app-id": "space.koyu.hometheater",
     "runtime": "org.gnome.Platform",
     "runtime-version": "47",
     "sdk": "org.gnome.Sdk",
-    "command": "videoh",
+    "command": "hometheater",
     "finish-args": [
         "--share=ipc",
         "--share=network",
@@ -18,7 +18,6 @@
         "--socket=pulseaudio",
         "--device=all",
         "--filesystem=xdg-run/gvfsd",
-        "--env=CLAPPER_USE_LEGACY_SINK=1",
         "--talk-name=org.gtk.vfs.*",
         "--filesystem=xdg-videos"
     ],
@@ -52,30 +51,7 @@
     "modules": [
         "python-deps.json",
         {
-            "name": "clapper",
-            "buildsystem": "meson",
-            "config-opts": [
-                "-Dclapper-gtk=enabled",
-                "-Dintrospection=enabled",
-                "-Dmpris=enabled",
-                "-Denhancers-loader=disabled"
-            ],
-            "build-options": {
-                "env": {
-                    "PYTHON": "python3"
-                }
-            },
-            "sources": [
-                {
-                    "type": "git",
-                    "url": "https://github.com/rafostar/clapper.git",
-                    "tag": "0.8.0",
-                    "commit": "true"
-                }
-            ]
-        },
-        {
-            "name": "videoh",
+            "name": "hometheater",
             "builddir": true,
             "buildsystem": "meson",
             "sources": [

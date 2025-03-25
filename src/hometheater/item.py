@@ -2,7 +2,7 @@ import gi
 import subprocess
 from pathlib import Path
 
-from .player import VideohPlayer
+from .player import HomeTheaterPlayer
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
 from gi.repository import Gtk, Adw, GObject, Gio, GLib, GdkPixbuf, Gdk, Gsk, Graphene
@@ -129,9 +129,9 @@ class PersonWidget(Gtk.Box):
         """Get the name of the person"""
         return self.name
 
-@Gtk.Template(resource_path='/space/koyu/videoh/item.ui')
-class VideohItem(Gtk.Box):
-    __gtype_name__ = 'VideohItem'
+@Gtk.Template(resource_path='/space/koyu/hometheater/item.ui')
+class HomeTheaterItem(Gtk.Box):
+    __gtype_name__ = 'HomeTheaterItem'
 
     # Define signals
     __gsignals__ = {
@@ -190,7 +190,7 @@ class VideohItem(Gtk.Box):
         # Launch video player (using xdg-open for Linux)
         if hasattr(self, 'video_path') and self.video_path:
             try:
-                player = VideohPlayer(self.window, self.video_path)
+                player = HomeTheaterPlayer(self.window, self.video_path)
                 player.present()
             except Exception as e:
                 dialog = Adw.MessageDialog(

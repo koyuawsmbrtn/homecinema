@@ -1,9 +1,9 @@
 pkgdatadir = join_paths(get_option('prefix'), get_option('datadir'), meson.project_name())
-moduledir = join_paths(pkgdatadir, 'videoh')
+moduledir = join_paths(pkgdatadir, 'hometheater')
 gnome = import('gnome')
 
-gnome.compile_resources('videoh',
-  'videoh.gresource.xml',
+gnome.compile_resources('hometheater',
+  'hometheater.gresource.xml',
   gresource_bundle: true,
   install: true,
   install_dir: pkgdatadir,
@@ -18,25 +18,25 @@ conf.set('localedir', join_paths(get_option('prefix'), get_option('localedir')))
 conf.set('pkgdatadir', pkgdatadir)
 
 configure_file(
-  input: 'videoh.in',
-  output: 'videoh',
+  input: 'hometheater.in',
+  output: 'hometheater',
   configuration: conf,
   install: true,
   install_dir: get_option('bindir')
 )
 
-videoh_sources = [
-  'videoh/__init__.py',
-  'videoh/window.py',
-  'videoh/imdb.py',
-  'videoh/item.py',
-  'videoh/player.py',
-  'videoh/episodes.py',
-  'videoh/tvmaze.py',
-  'videoh/style.css',
-  'videoh/wikipedia.py',
+hometheater_sources = [
+  'hometheater/__init__.py',
+  'hometheater/window.py',
+  'hometheater/imdb.py',
+  'hometheater/item.py',
+  'hometheater/player.py',
+  'hometheater/episodes.py',
+  'hometheater/tvmaze.py',
+  'hometheater/style.css',
+  'hometheater/wikipedia.py',
 ]
 
-install_data(videoh_sources,
+install_data(hometheater_sources,
   install_dir: moduledir
 )

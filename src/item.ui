@@ -2,8 +2,7 @@
 <interface>
   <requires lib="gtk" version="4.0" />
   <requires lib="libadwaita" version="1.0" />
-  <requires lib="clapper-gtk" version="1.0" />
-  <template class="VideohItem" parent="GtkBox">
+  <template class="HomeTheaterItem" parent="GtkBox">
     <!-- Overall card container -->
     <property name="orientation">vertical</property>
     <property name="width-request">400</property>  <!-- Reduced from 600 -->

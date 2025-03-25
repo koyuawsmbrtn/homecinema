@@ -11,9 +11,9 @@ gi.require_version('Gst', '1.0')
 from gi.repository import Adw, Gtk, GObject, ClapperGtk, Clapper, Gst
 from gettext import gettext as _
 
-@Gtk.Template(resource_path='/space/koyu/videoh/player.ui')
-class VideohPlayer(Gtk.Box):
-    __gtype_name__ = 'VideohPlayer'
+@Gtk.Template(resource_path='/space/koyu/hometheater/player.ui')
+class HomeTheaterPlayer(Gtk.Box):
+    __gtype_name__ = 'HomeTheaterPlayer'
 
     # Template children
     player_box = Gtk.Template.Child()

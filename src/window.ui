@@ -2,8 +2,8 @@
 <interface>
   <requires lib="gtk" version="4.0" />
   <requires lib="Adw" version="1.0" />
-  <template class="VideohWindow" parent="AdwApplicationWindow">
-    <property name="title" translatable="yes">Videoh</property>
+  <template class="HomeTheaterWindow" parent="AdwApplicationWindow">
+    <property name="title" translatable="yes">HomeTheater</property>
     <property name="default-width">800</property>
     <property name="default-height">600</property>
 

@@ -6,7 +6,7 @@ gi.require_version('Adw', '1')
 from gi.repository import Gtk, Adw, Pango, GdkPixbuf, Gdk
 from pathlib import Path
 
-@Gtk.Template(resource_path='/space/koyu/videoh/episodes.ui')
+@Gtk.Template(resource_path='/space/koyu/hometheater/episodes.ui')
 class EpisodesUI(Gtk.Box):
     __gtype_name__ = 'EpisodesUI'
 

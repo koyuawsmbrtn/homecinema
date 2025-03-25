@@ -1,0 +1,3 @@
+[D-BUS Service]
+Name=space.koyu.hometheater
+Exec=@bindir@/hometheater --gapplication-service

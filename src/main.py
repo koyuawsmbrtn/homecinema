@@ -24,14 +24,14 @@ gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
 
 from gi.repository import Gtk, Gio, Adw
-from .window import VideohWindow
+from .window import HomeTheaterWindow
 
 
-class VideohApplication(Adw.Application):
+class HomeTheaterApplication(Adw.Application):
     """The main application singleton class."""
 
     def __init__(self):
-        super().__init__(application_id='space.koyu.videoh',
+        super().__init__(application_id='space.koyu.hometheater',
                          flags=Gio.ApplicationFlags.DEFAULT_FLAGS)
         self.create_action('quit', lambda *_: self.quit(), ['<primary>q'])
         self.create_action('about', self.on_about_action)
@@ -45,13 +45,13 @@ class VideohApplication(Adw.Application):
         """
         win = self.props.active_window
         if not win:
-            win = VideohWindow(application=self)
+            win = HomeTheaterWindow(application=self)
         win.present()
 
     def on_about_action(self, *args):
         """Callback for the app.about action."""
-        about = Adw.AboutDialog(application_name='videoh',
-                                application_icon='space.koyu.videoh',
+        about = Adw.AboutDialog(application_name='hometheater',
+                                application_icon='space.koyu.hometheater',
                                 developer_name='koyu.space',
                                 version='0.1.0',
                                 developers=['Leonie'],
@@ -82,5 +82,5 @@ class VideohApplication(Adw.Application):
 
 def main(version):
     """The application's entry point."""
-    app = VideohApplication()
+    app = HomeTheaterApplication()
     return app.run(sys.argv)

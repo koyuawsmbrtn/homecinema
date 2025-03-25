@@ -1,4 +1,4 @@
-application_id = 'space.koyu.videoh'
+application_id = 'space.koyu.hometheater'
 
 scalable_dir = 'hicolor' / 'scalable' / 'apps'
 install_data(

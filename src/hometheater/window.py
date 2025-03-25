@@ -28,18 +28,18 @@ gi.require_version('Adw', '1')
 
 from gi.repository import Adw, Gtk, Gio, GLib, GdkPixbuf, Pango, Gdk
 from gettext import gettext as _
-from videoh.imdb import IMDb
-from videoh.tvmaze import TVMaze
-from .item import VideohItem
-from .player import VideohPlayer
+from hometheater.imdb import IMDb
+from hometheater.tvmaze import TVMaze
+from .item import HomeTheaterItem
+from .player import HomeTheaterPlayer
 from .episodes import EpisodesUI
 from .wikipedia import Wikipedia
 import re
 import threading
 
-@Gtk.Template(resource_path='/space/koyu/videoh/settings.ui')
-class VideohPreferencesWindow(Adw.PreferencesWindow):
-    __gtype_name__ = 'VideohPreferencesWindow'
+@Gtk.Template(resource_path='/space/koyu/hometheater/settings.ui')
+class HomeTheaterPreferencesWindow(Adw.PreferencesWindow):
+    __gtype_name__ = 'HomeTheaterPreferencesWindow'
     
     # Define all template children
     imdb_switch = Gtk.Template.Child()
@@ -52,7 +52,7 @@ class VideohPreferencesWindow(Adw.PreferencesWindow):
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.settings = Gio.Settings.new('space.koyu.videoh')
+        self.settings = Gio.Settings.new('space.koyu.hometheater')
         
         # Set up switches
         self.imdb_switch.set_active(self.settings.get_boolean('use-imdb'))
@@ -181,9 +181,9 @@ class VideohPreferencesWindow(Adw.PreferencesWindow):
         dialog.connect("response", on_response)
         dialog.present()
 
-@Gtk.Template(resource_path='/space/koyu/videoh/window.ui')
-class VideohWindow(Adw.ApplicationWindow):
-    __gtype_name__ = 'VideohWindow'
+@Gtk.Template(resource_path='/space/koyu/hometheater/window.ui')
+class HomeTheaterWindow(Adw.ApplicationWindow):
+    __gtype_name__ = 'HomeTheaterWindow'
 
     navigation_view = Gtk.Template.Child()
     view_stack = Gtk.Template.Child()
@@ -200,9 +200,9 @@ class VideohWindow(Adw.ApplicationWindow):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.settings = Gio.Settings.new('space.koyu.videoh')
-        self.config_dir = Path(GLib.get_user_config_dir()) / "videoh"
-        self.cache_dir = Path(GLib.get_user_cache_dir()) / "videoh"
+        self.settings = Gio.Settings.new('space.koyu.hometheater')
+        self.config_dir = Path(GLib.get_user_config_dir()) / "hometheater"
+        self.cache_dir = Path(GLib.get_user_cache_dir()) / "hometheater"
         self.videos_dir = Path.home() / "Videos"
         self.metadata_file = self.config_dir / "metadata.json"
         self.setup_directories()
@@ -592,7 +592,7 @@ class VideohWindow(Adw.ApplicationWindow):
         GLib.idle_add(lambda: progress_dialog.set_body(text) if progress_dialog.get_visible() else None)
 
     def on_fetch_metadata(self, action, param):
-        settings = Gio.Settings.new('space.koyu.videoh')
+        settings = Gio.Settings.new('space.koyu.hometheater')
         
         # Create progress dialog
         progress_dialog = Adw.MessageDialog.new(
@@ -653,14 +653,14 @@ class VideohWindow(Adw.ApplicationWindow):
         thread.start()
 
     def on_settings(self, action, param):
-        settings = VideohPreferencesWindow(transient_for=self)
+        settings = HomeTheaterPreferencesWindow(transient_for=self)
         settings.present()
 
     def on_about(self, action, param):
         about = Adw.AboutWindow(
             transient_for=self,
             application_name='Home Theater',
-            application_icon='space.koyu.videoh',
+            application_icon='space.koyu.hometheater',
             developer_name='koyu.space',
             version='1.0',
             developers=['Leonie'],
@@ -686,7 +686,7 @@ SPDX-License-Identifier: GPL-3.0-or-later"""
         dialog = Adw.MessageDialog.new(
             self,
             _("Folder Structure"),
-            _("Videoh looks for your videos in the following locations:\n\n"
+            _("HomeTheater looks for your videos in the following locations:\n\n"
               "~/Videos/Movies/\n"
               "    Place your movie files here\n\n"
               "~/Videos/Shows/\n"
@@ -779,7 +779,7 @@ SPDX-License-Identifier: GPL-3.0-or-later"""
     def show_movie_details(self, movie):
         """Show movie details in a new navigation page"""
         # Create item view using template
-        item = VideohItem(window=self, movie_data=movie)
+        item = HomeTheaterItem(window=self, movie_data=movie)
         
         # Load metadata
         metadata = movie.get('metadata', {})
@@ -913,7 +913,7 @@ SPDX-License-Identifier: GPL-3.0-or-later"""
         file_chooser.show()
 
     def on_movie_activated(self, movie):
-        item_window = VideohItem(self, movie)
+        item_window = HomeTheaterItem(self, movie)
         item_window.present()
 
     def on_movie_clicked(self, gesture, n_press, x, y, movie):
@@ -928,7 +928,7 @@ SPDX-License-Identifier: GPL-3.0-or-later"""
             title (str, optional): Title to display. Defaults to None.
             show_metadata (dict, optional): Show metadata for episodes. Defaults to None.
         """
-        player = VideohPlayer(self, path, title, show_metadata)
+        player = HomeTheaterPlayer(self, path, title, show_metadata)
         player.present()
 
     def show_episodes(self, show_name, seasons):

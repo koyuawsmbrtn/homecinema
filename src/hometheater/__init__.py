@@ -5,21 +5,21 @@ gi.require_version('Adw', '1')
 from gi.repository import Adw, Gtk, GObject
 from gettext import gettext as _
 import sys
-from .window import VideohWindow, VideohPreferencesWindow
-from .item import VideohItem
+from .window import HomeTheaterWindow, HomeTheaterPreferencesWindow
+from .item import HomeTheaterItem
 from .imdb import IMDb
-from .player import VideohPlayer
+from .player import HomeTheaterPlayer
 from .episodes import EpisodesUI
 
 def main(version):
     """The main entry point for the application."""
-    app = Adw.Application(application_id='space.koyu.videoh')
+    app = Adw.Application(application_id='space.koyu.hometheater')
     
     def on_activate(app):
-        win = VideohWindow(application=app)
+        win = HomeTheaterWindow(application=app)
         win.present()
     
     app.connect('activate', on_activate)
     return app.run(sys.argv)
 
-__all__ = ['VideohWindow', 'VideohPreferencesWindow', 'VideohItem', 'VideohPlayer', 'EpisodesUI', 'IMDb', 'main']
+__all__ = ['HomeTheaterWindow', 'HomeTheaterPreferencesWindow', 'HomeTheaterItem', 'HomeTheaterPlayer', 'EpisodesUI', 'IMDb', 'main']

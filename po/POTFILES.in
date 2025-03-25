@@ -1,8 +1,8 @@
 # List of source files containing translatable strings.
 # Please keep this file sorted alphabetically.
-data/space.koyu.videoh.desktop.in
-data/space.koyu.videoh.metainfo.xml.in
-data/space.koyu.videoh.gschema.xml
+data/space.koyu.hometheater.desktop.in
+data/space.koyu.hometheater.metainfo.xml.in
+data/space.koyu.hometheater.gschema.xml
 src/main.py
 src/window.py
 src/window.ui

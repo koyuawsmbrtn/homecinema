@@ -8,9 +8,9 @@ from pathlib import Path
 import json
 import os
 
-@Gtk.Template(resource_path='/space/koyu/videoh/player.ui')
-class VideohPlayer(Adw.Window):
-    __gtype_name__ = 'VideohPlayer'
+@Gtk.Template(resource_path='/space/koyu/hometheater/player.ui')
+class HomeTheaterPlayer(Adw.Window):
+    __gtype_name__ = 'HomeTheaterPlayer'
 
     # Template children
     video_area = Gtk.Template.Child()
@@ -124,7 +124,7 @@ class VideohPlayer(Adw.Window):
         GLib.idle_add(lambda: self.volume_scale.set_value(1.0))  # Set default volume after widget is realized
         self.volume_scale.connect('value-changed', self.on_volume_changed)
 
-        self.config_dir = os.path.expanduser('~/.config/videoh')
+        self.config_dir = os.path.expanduser('~/.config/hometheater')
         self.timestamps_file = os.path.join(self.config_dir, 'timestamps.json')
         
         # Create config directory if it doesn't exist

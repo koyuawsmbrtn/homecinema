@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
-  <schema id="space.koyu.videoh" path="/space/koyu/videoh/">
+  <schema id="space.koyu.hometheater" path="/space/koyu/hometheater/">
     <key name="use-imdb" type="b">
       <default>false</default>
       <summary>Use IMDB</summary>

@@ -1,1 +1,1 @@
-i18n.gettext('videoh', preset: 'glib')
+i18n.gettext('hometheater', preset: 'glib')

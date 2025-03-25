@@ -7,7 +7,7 @@ class TVMaze:
     def __init__(self):
         self.base_url = "https://api.tvmaze.com"
         self.headers = {
-            'User-Agent': 'Videoh/1.0 (https://github.com/koyu/videoh)',
+            'User-Agent': 'HomeTheater/1.0 (https://github.com/koyu/hometheater)',
             'Accept': 'application/json'
         }
 

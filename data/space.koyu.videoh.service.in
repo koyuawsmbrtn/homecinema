@@ -1,3 +1,0 @@
-[D-BUS Service]
-Name=space.koyu.videoh
-Exec=@bindir@/videoh --gapplication-service
