@@ -90,19 +90,6 @@ class VideohPlayer(Adw.Window):
         self.position_scale.connect('change-value', self.on_seek)
         self.fullscreen_button.connect('clicked', self.on_fullscreen)
         
-        # Set up event controllers
-        motion_controller = Gtk.EventControllerMotion.new()
-        motion_controller.connect('enter', self.on_mouse_enter)
-        motion_controller.connect('leave', self.on_mouse_leave)
-        motion_controller.connect('motion', self.on_mouse_motion)
-        self.add_controller(motion_controller)
-        
-        # Add motion controller to controls box specifically
-        controls_motion = Gtk.EventControllerMotion.new()
-        controls_motion.connect('enter', self.on_controls_enter)
-        controls_motion.connect('leave', self.on_controls_leave)
-        self.controls.add_controller(controls_motion)
-        
         key_controller = Gtk.EventControllerKey.new()
         key_controller.connect('key-pressed', self.on_key_pressed)
         self.add_controller(key_controller)
@@ -185,7 +172,6 @@ class VideohPlayer(Adw.Window):
             self.fullscreen_button.set_icon_name('view-restore-symbolic')
             self.get_style_context().remove_class('normal-window')
             self.get_style_context().add_class('fullscreen-window')
-            self.schedule_hide_ui()
         self.is_fullscreen = not self.is_fullscreen
         
     def update_position(self):
@@ -208,68 +194,12 @@ class VideohPlayer(Adw.Window):
         self.playbin.set_state(Gst.State.NULL)
         return False
 
-    def on_mouse_enter(self, controller, x, y):
-        self.mouse_inside = True
-        self.show_ui()
-        
-    def on_mouse_leave(self, controller):
-        self.mouse_inside = False
-        self.schedule_hide_ui()
-        
-    def on_mouse_motion(self, controller, x, y):
-        self.show_ui()
-        self.schedule_hide_ui()
-        
-    def on_controls_enter(self, controller, x, y):
-        self.mouse_inside = True
-        self.show_ui()
-        
-    def on_controls_leave(self, controller):
-        self.mouse_inside = False
-        if self.is_fullscreen:
-            self.schedule_hide_ui()
-
-    def show_ui(self):
-        self.header_bar.set_visible(True)
-        self.controls.set_visible(True)
-        self.ui_visible = True
-        window = self.get_root()
-        if window:
-            window.set_cursor(Gdk.Cursor.new_from_name("default"))
-        if self.is_fullscreen:
-            self.schedule_hide_ui()
-
-    def hide_ui(self):
-        if self.is_fullscreen and not self.mouse_inside:
-            self.header_bar.set_visible(False)
-            self.controls.set_visible(False)
-            self.ui_visible = False
-            window = self.get_root()
-            if window:
-                window.set_cursor(Gdk.Cursor.new_from_name("none"))
-            self.ui_timeout_id = None
-            return False
-        return True  # Keep timer running if conditions not met
-
-    def schedule_hide_ui(self):
-        if not self.is_fullscreen:
-            return
-            
-        # Remove existing timer if any
-        if hasattr(self, 'ui_timeout_id') and self.ui_timeout_id is not None:
-            GLib.source_remove(self.ui_timeout_id)
-            self.ui_timeout_id = None
-            
-        # Set new timer
-        self.ui_timeout_id = GLib.timeout_add(2000, lambda: self.hide_ui() or False)
-        
     def on_key_pressed(self, controller, keyval, keycode, state):
         if keyval == Gdk.KEY_Escape and self.is_fullscreen:
             self.unfullscreen()
             self.fullscreen_button.set_icon_name('view-fullscreen-symbolic')
             self.get_style_context().remove_class('fullscreen-window')
             self.get_style_context().add_class('normal-window')
-            self.show_ui()
             self.is_fullscreen = False
             return True
         return False
