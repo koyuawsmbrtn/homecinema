@@ -134,6 +134,14 @@ class EpisodesUI(Gtk.Box):
         .episode-row:active {
             background-color: alpha(@accent_color, 0.12);
         }
+
+        .circular {
+            padding: 8px;
+            min-width: 36px;
+            min-height: 36px;
+            margin: 4px;
+            border-radius: 9999px;
+        }
         """
         css_provider = Gtk.CssProvider()
         css_provider.load_from_data(css_string.encode(), -1)
@@ -185,6 +193,8 @@ class EpisodesUI(Gtk.Box):
             ep_button.set_label(str(ep_num))
             ep_button.add_css_class('circular')
             ep_button.add_css_class('episode-number')
+            ep_button.set_valign(Gtk.Align.CENTER)
+            ep_button.add_css_class('flat')
             ep_button.set_sensitive(False)  # Make it non-clickable
             row.add_prefix(ep_button)
             
@@ -234,7 +244,9 @@ class EpisodesUI(Gtk.Box):
             # Add play button
             play_button = Gtk.Button()
             play_button.set_icon_name('media-playback-start-symbolic')
+            play_button.set_valign(Gtk.Align.CENTER)
             play_button.add_css_class('circular')
+            play_button.add_css_class('flat')
             play_button.connect('clicked', 
                 lambda b, e: self.parent_window.show_video(e['path'], episode_title), 
                 episode)
