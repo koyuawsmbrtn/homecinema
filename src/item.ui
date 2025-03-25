@@ -5,7 +5,6 @@
   <requires lib="clapper-gtk" version="1.0" />
   <template class="VideohItem" parent="GtkBox">
     <!-- Overall card container -->
-    <property name="css-classes">card</property>
     <property name="orientation">vertical</property>
     <property name="width-request">400</property>  <!-- Reduced from 600 -->
     <property name="height-request">300</property>  <!-- Reduced from 400 -->

@@ -75,22 +75,6 @@
             ]
         },
         {
-            "name": "pygobject",
-            "buildsystem": "meson",
-            "build-options": {
-                "config-opts": [
-                    "-Dtests=false"
-                ]
-            },
-            "sources": [
-                {
-                    "type": "archive",
-                    "url": "https://download.gnome.org/sources/pygobject/3.44/pygobject-3.44.1.tar.xz",
-                    "sha256": "3c6805d1321be90cc32e648215a562430e0d3d6edcda8f4c5e7a9daffcad5710"
-                }
-            ]
-        },
-        {
             "name": "videoh",
             "builddir": true,
             "buildsystem": "meson",

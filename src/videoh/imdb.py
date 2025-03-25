@@ -14,7 +14,7 @@ class IMDb:
 
     def search_movie(self, query):
         """Search for movies on IMDB"""
-        url = self.search_url + quote_plus(query) + "&s=tt&ttype=ft"
+        url = self.search_url + quote_plus(query) + "&s=tt"
         response = requests.get(url, headers=self.headers)
         soup = BeautifulSoup(response.text, 'html.parser')
         

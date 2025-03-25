@@ -92,6 +92,13 @@ class VideohWindow(Adw.ApplicationWindow):
         self.load_library()
         self.populate_ui()
         
+        # Load CSS
+        css_provider = Gtk.CssProvider()
+        css_provider.load_from_path(str(Path(__file__).parent / "style.css"))
+        Gtk.StyleContext.add_provider_for_display(
+            Gdk.Display.get_default(), css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+        
         # Check for auto-fetch setting
         if self.settings.get_boolean('auto-fetch'):
             GLib.idle_add(self.on_fetch_metadata, None, None)
@@ -134,7 +141,7 @@ class VideohWindow(Adw.ApplicationWindow):
         movies_path = self.videos_dir / "Movies"
         self.movies = []
         for movie_file in movies_path.glob("**/*"):
-            if movie_file.is_file() and movie_file.suffix.lower() in ['.mp4', '.mkv', '.avi']:
+            if movie_file.is_file() and movie_file.suffix.lower() in ['.mp4', '.mkv', '.avi', '.webm']:
                 movie_data = {
                     'path': str(movie_file),
                     'title': movie_file.stem,
@@ -155,7 +162,7 @@ class VideohWindow(Adw.ApplicationWindow):
                         season_num = item.name.lower().replace("season", "").strip()
                         episodes = []
                         for episode_file in item.glob("*"):
-                            if episode_file.is_file() and episode_file.suffix.lower() in ['.mp4', '.mkv', '.avi']:
+                            if episode_file.is_file() and episode_file.suffix.lower() in ['.mp4', '.mkv', '.avi', '.webm']:
                                 episode_data = {
                                     'path': str(episode_file),
                                     'title': episode_file.stem,
@@ -165,7 +172,7 @@ class VideohWindow(Adw.ApplicationWindow):
                                 episodes.append(episode_data)
                         if episodes:
                             seasons[season_num] = episodes
-                    elif item.is_file() and item.suffix.lower() in ['.mp4', '.mkv', '.avi']:
+                    elif item.is_file() and item.suffix.lower() in ['.mp4', '.mkv', '.avi', '.webm']:
                         # Episode directly in show directory - assume season 1
                         if "1" not in seasons:
                             seasons["1"] = []
@@ -616,7 +623,7 @@ class VideohWindow(Adw.ApplicationWindow):
               "            episode2.mkv\n"
               "        Season 2/\n"
               "            episode1.mp4\n\n"
-              "Files are supported in MP4, MKV and AVI formats.")
+              "Files are supported in MP4, MKV, WEBM and AVI formats.")
         )
         dialog.add_response("ok", _("OK"))
         dialog.present()
@@ -639,7 +646,7 @@ class VideohWindow(Adw.ApplicationWindow):
             
             # Add poster image
             poster = metadata.get('poster')
-            if (poster and Path(poster).exists()):
+            if poster and Path(poster).exists():
                 pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
                     poster, 200, 300, False)
                 image = Gtk.Picture.new_for_pixbuf(pixbuf)

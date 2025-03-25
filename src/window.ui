@@ -6,6 +6,7 @@
     <property name="title" translatable="yes">Videoh</property>
     <property name="default-width">800</property>
     <property name="default-height">600</property>
+
     <child>
       <object class="AdwToastOverlay" id="toast_overlay">
         <child>
@@ -18,20 +19,72 @@
                     <child type="top">
                       <object class="AdwHeaderBar">
                         <property name="centering-policy">strict</property>
-                        <child type="end">
-                          <object class="GtkMenuButton">
-                            <property name="icon-name">open-menu-symbolic</property>
-                            <property name="menu-model">primary_menu</property>
+                        
+                        <child type="start">
+                          <object class="GtkMenuButton" id="add_btn">
+                            <property name="icon-name">plus</property>
+                            <property name="tooltip-text" translatable="yes">Add a title to your library</property>
+                            <property name="menu-model">add_menu</property>
                           </object>
                         </child>
+
+                        <child type="start">
+                          <object class="GtkToggleButton" id="show_search_btn">
+                            <property name="icon-name">loupe</property>
+                            <property name="tooltip-text" translatable="yes">Show/Hide search bar</property>
+                          </object>
+                        </child>
+
                         <child type="title">
-                          <object class="AdwViewSwitcher">
+                          <object class="AdwViewSwitcher" id="title">
                             <property name="stack">view_stack</property>
                             <property name="policy">wide</property>
                           </object>
                         </child>
+
+                        <child type="end">
+                          <object class="GtkMenuButton">
+                            <property name="icon-name">open-menu-symbolic</property>
+                            <property name="menu-model">primary_menu</property>
+                            <property name="tooltip-text" translatable="yes">Main Menu</property>
+                          </object>
+                        </child>
                       </object>
                     </child>
+
+                    <child type="top">
+                      <object class="GtkSearchBar" id="search_bar">
+                        <child>
+                          <object class="GtkBox">
+                            <property name="orientation">horizontal</property>
+                            <property name="spacing">6</property>
+                            
+                            <child>
+                              <object class="GtkDropDown" id="search_mode">
+                                <property name="model">
+                                  <object class="GtkStringList">
+                                    <items>
+                                      <item translatable="yes">Title</item>
+                                      <item translatable="yes">Genre</item>
+                                    </items>
+                                  </object>
+                                </property>
+                              </object>
+                            </child>
+
+                            <child>
+                              <object class="GtkSearchEntry" id="search_entry">
+                                <property name="halign">center</property>
+                                <property name="activates-default">true</property>
+                                <property name="placeholder-text" translatable="yes">Search Your Watchlist</property>
+                                <property name="search-delay">500</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+
                     <child>
                       <object class="AdwViewStack" id="view_stack">
                         <property name="vexpand">true</property>
@@ -85,6 +138,12 @@
                             </property>
                           </object>
                         </child>
+                     </object>
+                    </child>
+
+                    <child type="bottom">
+                      <object class="AdwViewSwitcherBar" id="switcher_bar">
+                        <property name="stack">view_stack</property>
                       </object>
                     </child>
                   </object>
@@ -100,27 +159,32 @@
   <menu id="primary_menu">
     <section>
       <item>
-        <attribute name="label" translatable="yes">Fetch Metadata</attribute>
-        <attribute name="action">app.fetch-metadata</attribute>
+        <attribute name="label" translatable="yes">A-Z</attribute>
+        <attribute name="action">win.view-sorting</attribute>
+        <attribute name="target">az</attribute>
       </item>
-      <item>
-        <attribute name="label" translatable="yes">Open Videos Folder</attribute>
-        <attribute name="action">app.open-folder</attribute>
-      </item>
-      <item>
-        <attribute name="label" translatable="yes">Settings</attribute>
-        <attribute name="action">app.settings</attribute>
-      </item>
+      <!-- Add other sorting options -->
     </section>
     <section>
       <item>
-        <attribute name="label" translatable="yes">Help</attribute>
-        <attribute name="action">app.help</attribute>
+        <attribute name="label" translatable="yes">_Refresh</attribute>
+        <attribute name="action">win.refresh</attribute>
       </item>
       <item>
-        <attribute name="label" translatable="yes">About Vide OH!</attribute>
-        <attribute name="action">app.about</attribute>
+        <attribute name="label" translatable="yes">_Preferences</attribute>
+        <attribute name="action">app.preferences</attribute>
       </item>
     </section>
+  </menu>
+
+  <menu id="add_menu">
+    <item>
+      <attribute name="label" translatable="yes">From The Movie Database (TMDB)</attribute>
+      <attribute name="action">win.add-tmdb</attribute>
+    </item>
+    <item>
+      <attribute name="label" translatable="yes">Manually</attribute>
+      <attribute name="action">win.add-manual</attribute>
+    </item>
   </menu>
 </interface>
