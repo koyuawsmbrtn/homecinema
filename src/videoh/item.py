@@ -142,13 +142,30 @@ class VideohItem(Gtk.Box):
         """Handler for cast member selection"""
         person_widget = child.get_child()
         if isinstance(person_widget, PersonWidget):
-            dialog = Adw.MessageDialog(
-                transient_for=self.get_root(),
-                heading="Cast Member Details",
-                body=f"Selected cast member: {person_widget.get_name()}"
-            )
-            dialog.add_response("ok", "OK")
-            dialog.present()
+            name = person_widget.get_name()
+            bio = self.movie_data.get('metadata', {}).get('cast_bios', {}).get(name)
+            
+            if bio:
+                # Create a dialog with scrollable biography
+                dialog = Adw.MessageDialog(
+                    transient_for=self.get_root(),
+                    heading=name,
+                )
+                
+                scrolled = Gtk.ScrolledWindow()
+                scrolled.set_min_content_height(200)
+                scrolled.set_min_content_width(400)
+                
+                text_view = Gtk.TextView()
+                text_view.set_wrap_mode(Gtk.WrapMode.WORD)
+                text_view.set_editable(False)
+                text_view.get_buffer().set_text(bio)
+                
+                scrolled.set_child(text_view)
+                dialog.set_extra_child(scrolled)
+                
+                dialog.add_response("ok", _("OK"))
+                dialog.present()
 
     def _show_edit_dialog(self, title, current_text, callback):
         """Helper to show an edit dialog"""

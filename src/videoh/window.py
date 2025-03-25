@@ -33,6 +33,7 @@ from videoh.tvmaze import TVMaze
 from .item import VideohItem
 from .player import VideohPlayer
 from .episodes import EpisodesUI
+from .wikipedia import Wikipedia
 import re
 import threading
 
@@ -228,6 +229,8 @@ class VideohWindow(Adw.ApplicationWindow):
         self.search_entry.connect('search-changed', self.on_search_changed)
         self.search_mode.connect('notify::selected', self.on_search_changed)
 
+        self.wikipedia = Wikipedia() if self.settings.get_boolean('use-wikipedia') else None
+
     def setup_actions(self):
         """Set up window actions"""
         actions = [
@@ -362,27 +365,38 @@ class VideohWindow(Adw.ApplicationWindow):
         return str(poster_path)
 
     def download_person_image(self, url, person_name, role):
+        """Download and cache a person's image"""
         if not url:
             return None
+            
+        # Create a safe filename from the person's name
         safe_name = "".join(c for c in person_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
         image_filename = f"{safe_name}.jpg"
         image_path = self.cache_dir / role / image_filename
         
-        # Create subdirectory for the role (e.g. "directors" or "cast")
+        # Create role directory if it doesn't exist
         (self.cache_dir / role).mkdir(exist_ok=True)
         
-        if not image_path.exists():
-            try:
-                response = requests.get(url, stream=True)
-                response.raise_for_status()
-                with open(image_path, 'wb') as f:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        f.write(chunk)
-                return str(image_path)
-            except Exception as e:
-                print(f"Error downloading {role} image for {person_name}: {e}")
-                return None
-        return str(image_path)
+        # Use cached image if it exists
+        if image_path.exists():
+            return str(image_path)
+        
+        # Download and cache the image if it doesn't exist
+        try:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:136.0) Gecko/20100101 Firefox/136.0'
+            }
+            response = requests.get(url, headers=headers, stream=True)
+            response.raise_for_status()
+            
+            with open(image_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            
+            return str(image_path)
+        except Exception as e:
+            print(f"Error downloading {role} image for {person_name}: {e}")
+            return None
 
     def _fetch_movie_metadata(self, imdb, movie, progress_dialog):
         """Fetch metadata for a single movie"""
@@ -394,7 +408,7 @@ class VideohWindow(Adw.ApplicationWindow):
             # Search for movie
             search_results = imdb.search_movie(movie['title'])
             if search_results:
-                # Get first matching result - handle both object and dict formats
+                # Get first matching result
                 first_result = search_results[0]
                 movie_id = first_result.getID() if hasattr(first_result, 'getID') else first_result.get('movieID')
                 
@@ -410,7 +424,11 @@ class VideohWindow(Adw.ApplicationWindow):
                         'director': [p['name'] for p in movie_data.get('director', [])],
                         'cast': [p['name'] for p in movie_data.get('cast', [])[:5]],
                         'genres': movie_data.get('genres', []),
-                        'type': 'movie'
+                        'type': 'movie',
+                        'cast_images': {},
+                        'director_images': {},
+                        'cast_bios': {},
+                        'director_bios': {}
                     }
                     
                     # Download poster if available
@@ -421,7 +439,45 @@ class VideohWindow(Adw.ApplicationWindow):
                         )
                         if poster_path:
                             metadata['poster'] = poster_path
-                    
+
+                    # Fetch Wikipedia data if enabled
+                    if self.settings.get_boolean('use-wikipedia'):
+                        # Fetch cast info
+                        for cast_member in metadata['cast']:
+                            self._update_progress_safely(
+                                progress_dialog, 
+                                _("Fetching info for: {}").format(cast_member)
+                            )
+                            wiki_data = self.wikipedia.search_person(cast_member)
+                            if wiki_data and wiki_data.get('image_url'):
+                                # Download and cache the image
+                                image_path = self.download_person_image(
+                                    wiki_data['image_url'],
+                                    cast_member,
+                                    'cast'
+                                )
+                                if image_path:
+                                    metadata['cast_images'][cast_member] = image_path
+                                metadata['cast_bios'][cast_member] = wiki_data.get('description')
+
+                        # Fetch director info
+                        for director in metadata['director']:
+                            self._update_progress_safely(
+                                progress_dialog, 
+                                _("Fetching info for: {}").format(director)
+                            )
+                            wiki_data = self.wikipedia.search_person(director)
+                            if wiki_data and wiki_data.get('image_url'):
+                                # Download and cache the image
+                                image_path = self.download_person_image(
+                                    wiki_data['image_url'],
+                                    director,
+                                    'directors'
+                                )
+                                if image_path:
+                                    metadata['director_images'][director] = image_path
+                                metadata['director_bios'][director] = wiki_data.get('description')
+
                     # Update metadata
                     self.update_metadata(movie['path'], metadata)
                     

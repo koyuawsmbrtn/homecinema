@@ -7,6 +7,13 @@ class Wikipedia:
     """Wikipedia API wrapper for searching cast member information"""
     
     BASE_URL = "https://en.wikipedia.org/w/api.php"
+    USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:136.0) Gecko/20100101 Firefox/136.0"
+
+    def __init__(self):
+        """Initialize with proper headers"""
+        self.headers = {
+            'User-Agent': self.USER_AGENT
+        }
 
     def _clean_name(self, title: str) -> str:
         """Clean up article title to get just the person's name"""
@@ -65,7 +72,7 @@ class Wikipedia:
             "srlimit": 10  # Get more results to filter
         }
 
-        response = requests.get(self.BASE_URL, params=params)
+        response = requests.get(self.BASE_URL, params=params, headers=self.headers)
         data = response.json()
 
         if not data.get("query", {}).get("search"):
@@ -117,7 +124,7 @@ class Wikipedia:
             "pageids": best_result["pageid"]
         }
 
-        response = requests.get(self.BASE_URL, params=params)
+        response = requests.get(self.BASE_URL, params=params, headers=self.headers)
         data = response.json()
         page = data["query"]["pages"][str(best_result["pageid"])]
         

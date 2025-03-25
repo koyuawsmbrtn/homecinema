@@ -34,6 +34,7 @@ videoh_sources = [
   'videoh/episodes.py',
   'videoh/tvmaze.py',
   'videoh/style.css',
+  'videoh/wikipedia.py',
 ]
 
 install_data(videoh_sources,
