@@ -12,6 +12,36 @@ class IMDb:
             'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/121.0.0.0'
         }
 
+    def _match_score(self, query, title):
+        """Calculate how well a search result matches the query"""
+        query = query.lower()
+        title = title.lower()
+        
+        # Exact match gets highest score
+        if query == title:
+            return 100
+            
+        # Remove common words that might interfere with matching
+        common_words = {'the', 'a', 'an', 'and', '&'}
+        query_words = set(word for word in query.split() if word not in common_words)
+        title_words = set(word for word in title.split() if word not in common_words)
+        
+        # Calculate word overlap
+        matching_words = query_words & title_words
+        total_query_words = len(query_words)
+        
+        if not matching_words:
+            return 0
+            
+        # Calculate match percentage
+        match_percentage = (len(matching_words) / total_query_words) * 100
+        
+        # Add bonus for words in same order
+        if all(word in title for word in query.split()):
+            match_percentage += 20
+            
+        return match_percentage
+
     def search_movie(self, query):
         """Search for movies on IMDB"""
         url = self.search_url + quote_plus(query) + "&s=tt"
@@ -30,20 +60,29 @@ class IMDb:
                 if not imdb_id:
                     continue
                     
-                year_elem = item.select_one('.ipc-metadata-list-summary-item__year')
-                year = year_elem.text if year_elem else ''
+                title = title_elem.text
+                # Calculate match score
+                match_score = self._match_score(query, title)
                 
-                results.append({
-                    'movieID': imdb_id.group(1),  # Changed to match expected property
-                    'title': title_elem.text,
-                    'year': year,
-                    'url': f"{self.base_url}{link}"
-                })
+                # Only include results with good match scores
+                if match_score >= 70:  # Require at least 70% match
+                    year_elem = item.select_one('.ipc-metadata-list-summary-item__year')
+                    year = year_elem.text if year_elem else ''
+                    
+                    results.append({
+                        'movieID': imdb_id.group(1),
+                        'title': title,
+                        'year': year,
+                        'url': f"{self.base_url}{link}",
+                        'match_score': match_score
+                    })
             except Exception as e:
                 print(f"Error parsing search result: {e}")
                 continue
-                
-        return results
+        
+        # Sort by match score and return best matches only
+        results.sort(key=lambda x: x['match_score'], reverse=True)
+        return results[:5] if results else None  # Return top 5 matches or None if no good matches
 
     def search_tv(self, query):
         """Search for TV shows on IMDB"""
