@@ -31,6 +31,7 @@ class VideohPlayer(Adw.Window):
         # Add properties for UI hiding
         self.ui_timeout_id = None
         self.mouse_inside = False
+        self.ui_visible = True
         
         # Set transient for parent
         self.set_transient_for(parent)
@@ -95,6 +96,12 @@ class VideohPlayer(Adw.Window):
         motion_controller.connect('leave', self.on_mouse_leave)
         motion_controller.connect('motion', self.on_mouse_motion)
         self.add_controller(motion_controller)
+        
+        # Add motion controller to controls box specifically
+        controls_motion = Gtk.EventControllerMotion.new()
+        controls_motion.connect('enter', self.on_controls_enter)
+        controls_motion.connect('leave', self.on_controls_leave)
+        self.controls.add_controller(controls_motion)
         
         key_controller = Gtk.EventControllerKey.new()
         key_controller.connect('key-pressed', self.on_key_pressed)
@@ -164,6 +171,10 @@ class VideohPlayer(Adw.Window):
             self.get_style_context().remove_class('fullscreen-window')
             self.get_style_context().add_class('normal-window')
             self.show_ui()
+            # Always show cursor in windowed mode
+            window = self.get_root()
+            if window:
+                window.set_cursor(Gdk.Cursor.new_from_name("default"))
         else:
             self.fullscreen()
             self.fullscreen_button.set_icon_name('view-restore-symbolic')
@@ -193,31 +204,67 @@ class VideohPlayer(Adw.Window):
         return False
 
     def on_mouse_enter(self, controller, x, y):
+        print("Mouse entered")  # Debug
         self.mouse_inside = True
         self.show_ui()
         
     def on_mouse_leave(self, controller):
+        print("Mouse left")  # Debug
         self.mouse_inside = False
         self.schedule_hide_ui()
         
     def on_mouse_motion(self, controller, x, y):
+        print(f"Mouse motion at {x},{y}")  # Debug
         self.show_ui()
         self.schedule_hide_ui()
         
+    def on_controls_enter(self, controller, x, y):
+        print("Controls entered")  # Debug
+        self.mouse_inside = True
+        self.show_ui()
+        
+    def on_controls_leave(self, controller):
+        print("Controls left")  # Debug
+        self.mouse_inside = False
+        if self.is_fullscreen:
+            self.schedule_hide_ui()
+
     def show_ui(self):
+        print("Showing UI")  # Debug
         self.header_bar.set_visible(True)
         self.controls.set_visible(True)
-        
+        self.ui_visible = True
+        window = self.get_root()
+        if window:
+            window.set_cursor(Gdk.Cursor.new_from_name("default"))
+        if self.is_fullscreen:
+            self.schedule_hide_ui()
+
     def hide_ui(self):
+        print("Hiding UI")  # Debug
         if self.is_fullscreen and not self.mouse_inside:
             self.header_bar.set_visible(False)
             self.controls.set_visible(False)
-        return False  # Important for timeout
-        
+            self.ui_visible = False
+            window = self.get_root()
+            if window:
+                window.set_cursor(Gdk.Cursor.new_from_name("none"))
+            self.ui_timeout_id = None
+            return False
+        return True  # Keep timer running if conditions not met
+
     def schedule_hide_ui(self):
-        if self.ui_timeout_id and GLib.main_context_default().find_source_by_id(self.ui_timeout_id):
+        print("Scheduling hide UI")  # Debug
+        if not self.is_fullscreen:
+            return
+            
+        # Remove existing timer if any
+        if hasattr(self, 'ui_timeout_id') and self.ui_timeout_id is not None:
             GLib.source_remove(self.ui_timeout_id)
-        self.ui_timeout_id = GLib.timeout_add(2000, self.hide_ui)
+            self.ui_timeout_id = None
+            
+        # Set new timer
+        self.ui_timeout_id = GLib.timeout_add(2000, lambda: self.hide_ui() or False)
         
     def on_key_pressed(self, controller, keyval, keycode, state):
         if keyval == Gdk.KEY_Escape and self.is_fullscreen:
