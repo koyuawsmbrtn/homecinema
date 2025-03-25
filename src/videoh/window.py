@@ -1081,9 +1081,7 @@ class VideohWindow(Adw.ApplicationWindow):
         self.shows_box.append(card)
 
     def _create_poster_card(self, title, metadata, on_click, is_show=False):
-        """Extract poster card creation to reusable method"""
-        # Move the existing poster card creation code here
-        # This is the code from your populate_ui method's create_poster_card function
+        """Create a poster card with hover effects"""
         overlay = Gtk.Overlay()
         overlay.add_css_class('poster-box')
         
@@ -1097,7 +1095,6 @@ class VideohWindow(Adw.ApplicationWindow):
                 poster, 200, 300, False)
             image = Gtk.Picture.new_for_pixbuf(pixbuf)
         else:
-            # Use different fallback icons for shows and movies
             icon_name = "video-television" if is_show else "image-missing"
             image = Gtk.Image.new_from_icon_name(icon_name)
             image.set_pixel_size(200)
@@ -1114,7 +1111,7 @@ class VideohWindow(Adw.ApplicationWindow):
         label.add_css_class('poster-label')
         box.append(label)
         
-        # Add info button overlay
+        # Add info button overlay (initially hidden)
         info_button = Gtk.Button()
         info_button.set_icon_name('info-outline-symbolic' if not is_show else 'view-list-symbolic')
         info_button.add_css_class('circular')
@@ -1123,9 +1120,16 @@ class VideohWindow(Adw.ApplicationWindow):
         info_button.set_halign(Gtk.Align.END)
         info_button.set_margin_top(6)
         info_button.set_margin_end(6)
+        info_button.set_opacity(0.0)  # Start hidden
         
         # Connect info button click
         info_button.connect('clicked', on_click)
+        
+        # Add hover controller for the overlay
+        motion = Gtk.EventControllerMotion.new()
+        motion.connect('enter', lambda c, x, y: info_button.set_opacity(1.0))
+        motion.connect('leave', lambda c: info_button.set_opacity(0.0))
+        overlay.add_controller(motion)
         
         # Add main box and button to overlay
         overlay.set_child(box)
