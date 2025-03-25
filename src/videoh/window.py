@@ -406,7 +406,10 @@ class VideohWindow(Adw.ApplicationWindow):
                 return
                 
             # Search for movie
-            search_results = imdb.search_movie(movie['title'])
+            # Clean movie title by removing common piracy markers and release years
+            cleaned_title = re.sub(r'(?i)[\._]?(720p|1080p|2160p|HDTV|BR?Rip|BluRay|WEB[-._ ]?DL|WEBRip|HDRip|DVDRip|x\.?264|x\.?265|XviD|[-._ ]YIFY|RARBG|\[.*?\]|\(.*?\)).*$', '', movie['title'])
+            cleaned_title = cleaned_title.replace('.', ' ').strip()
+            search_results = imdb.search_movie(cleaned_title)
             if search_results:
                 # Get first matching result
                 first_result = search_results[0]
