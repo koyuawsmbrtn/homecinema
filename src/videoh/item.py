@@ -68,6 +68,8 @@ class VideohItem(Gtk.Box):
     
     directors_flowbox = Gtk.Template.Child()
     cast_flowbox = Gtk.Template.Child()
+    cast_group = Gtk.Template.Child()
+    directors_group = Gtk.Template.Child()
 
     def __init__(self, window, movie_data, **kwargs):
         super().__init__(**kwargs)
@@ -273,11 +275,17 @@ class VideohItem(Gtk.Box):
             if child is None:
                 break
             self.cast_flowbox.remove(child)
+        # Hide cast group if it exists
+        if hasattr(self, 'cast_group'):
+            self.cast_group.set_visible(False)
 
     def add_cast_member(self, name, image_path):
         """Add a cast member to the flowbox"""
         person = PersonWidget(name, image_path)
         self.cast_flowbox.append(person)
+        # Show cast group if it exists
+        if hasattr(self, 'cast_group'):
+            self.cast_group.set_visible(True)
 
     def clear_directors(self):
         """Remove all directors from the flowbox"""
@@ -286,8 +294,14 @@ class VideohItem(Gtk.Box):
             if child is None:
                 break
             self.directors_flowbox.remove(child)
+        # Hide directors group if it exists
+        if hasattr(self, 'directors_group'):
+            self.directors_group.set_visible(False)
 
     def add_director(self, name, image_path):
         """Add a director to the flowbox"""
         person = PersonWidget(name, image_path)
         self.directors_flowbox.append(person)
+        # Show directors group if it exists
+        if hasattr(self, 'directors_group'):
+            self.directors_group.set_visible(True)

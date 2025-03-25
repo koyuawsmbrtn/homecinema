@@ -98,7 +98,8 @@ class EpisodesUI(Gtk.Box):
             margin: 8px;
             font-size: 14px;
             font-weight: bold;
-            text-align: center;
+            /* Use halign instead of text-align */
+            halign: center;
             background: alpha(@accent_color, 0.15);
             color: @accent_color;
             border-radius: 50%;
@@ -114,8 +115,8 @@ class EpisodesUI(Gtk.Box):
         }
 
         .episode-list row > box {
-            margin-left: 12px;
-            margin-right: 12px;
+            margin-start: 12px;
+            margin-end: 12px;
         }
 
         .rounded-corners {

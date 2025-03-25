@@ -13,14 +13,14 @@
         <property name="show-end-title-buttons">false</property>
         <child type="end">
           <object class="GtkButton" id="refresh_button">
-            <signal name="clicked" handler="on_refresh_clicked"/>
+            <signal name="clicked" handler="on_refresh_clicked" />
             <property name="icon-name">view-refresh-symbolic</property>
             <property name="tooltip-text" translatable="yes">Refresh metadata</property>
           </object>
         </child>
         <child type="end">
           <object class="GtkButton" id="play_button">
-            <signal name="clicked" handler="on_play_clicked"/>
+            <signal name="clicked" handler="on_play_clicked" />
             <property name="icon-name">media-playback-start-symbolic</property>
             <property name="tooltip-text" translatable="yes">Play video</property>
             <style>
@@ -42,21 +42,21 @@
         <!-- Poster button with image -->
         <child>
           <object class="GtkButton" id="poster_button">
-            <signal name="clicked" handler="on_poster_clicked"/>
+            <signal name="clicked" handler="on_poster_clicked" />
             <property name="has-frame">false</property>
             <property name="width-request">100</property>
             <property name="height-request">150</property>
             <property name="hexpand">false</property>
             <property name="vexpand">false</property>
             <style>
-              <class name="poster-button"/>
+              <class name="poster-button" />
             </style>
             <child>
               <object class="GtkPicture" id="poster_image">
                 <property name="width-request">100</property>
                 <property name="height-request">150</property>
                 <style>
-                  <class name="poster-image"/>
+                  <class name="poster-image" />
                 </style>
               </object>
             </child>
@@ -82,7 +82,7 @@
                         <property name="hexpand">true</property>
                         <property name="wrap">true</property>
                         <style>
-                          <class name="title-4"/>
+                          <class name="title-4" />
                         </style>
                       </object>
                     </child>
@@ -164,31 +164,40 @@
             <child>
               <object class="AdwPreferencesGroup">
                 <property name="title" translatable="yes">Cast and Crew</property>
-                
-                <!-- Directors Section -->
                 <child>
-                  <object class="GtkFlowBox" id="directors_flowbox">
-                    <property name="selection-mode">none</property>
-                    <property name="homogeneous">true</property>
-                    <property name="min-children-per-line">4</property>
-                    <property name="max-children-per-line">6</property>
-                    <style>
-                      <class name="director-images" />
-                    </style>
+                  <object class="AdwPreferencesGroup" id="directors_group">
+                    <property name="visible">false</property>
+                    <property name="title" translatable="yes">Directors</property>
+                    <child>
+                      <object class="GtkFlowBox" id="directors_flowbox">
+                        <property name="selection-mode">none</property>
+                        <property name="homogeneous">true</property>
+                        <property name="min-children-per-line">4</property>
+                        <property name="max-children-per-line">6</property>
+                        <style>
+                          <class name="director-images" />
+                        </style>
+                      </object>
+                    </child>
                   </object>
                 </child>
 
-                <!-- Cast Section -->
                 <child>
-                  <object class="GtkFlowBox" id="cast_flowbox">
-                    <signal name="child-activated" handler="on_cast_activated"/>
-                    <property name="selection-mode">none</property>
-                    <property name="homogeneous">true</property>
-                    <property name="min-children-per-line">4</property>
-                    <property name="max-children-per-line">6</property>
-                    <style>
-                      <class name="cast-images" />
-                    </style>
+                  <object class="AdwPreferencesGroup" id="cast_group">
+                    <property name="visible">false</property>
+                    <property name="title" translatable="yes">Cast</property>
+                    <child>
+                      <object class="GtkFlowBox" id="cast_flowbox">
+                        <property name="selection-mode">none</property>
+                        <property name="homogeneous">true</property>
+                        <property name="min-children-per-line">4</property>
+                        <property name="max-children-per-line">6</property>
+                        <style>
+                          <class name="director-images" />
+                        </style>
+                        <signal name="child-activated" handler="on_cast_activated" />
+                      </object>
+                    </child>
                   </object>
                 </child>
               </object>
