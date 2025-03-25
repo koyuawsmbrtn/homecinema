@@ -48,6 +48,23 @@
                 <property name="label">00:00</property>
               </object>
             </child>
+            <child>
+              <object class="GtkBox">
+                <property name="orientation">horizontal</property>
+                <property name="spacing">6</property>
+                <child>
+                  <object class="GtkImage">
+                    <property name="icon-name">audio-volume-medium-symbolic</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkScale" id="volume_scale">
+                    <property name="width-request">100</property>
+                    <property name="draw-value">False</property>
+                  </object>
+                </child>
+              </object>
+            </child>
           </object>
         </child>
       </object>

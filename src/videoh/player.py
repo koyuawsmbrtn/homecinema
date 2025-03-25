@@ -19,11 +19,11 @@ class VideohPlayer(Adw.Window):
     time_label = Gtk.Template.Child()
     fullscreen_button = Gtk.Template.Child()
     header_bar = Gtk.Template.Child()  # Add this to template children at top
+    volume_scale = Gtk.Template.Child()
 
     def __init__(self, parent, path, title=None, show_metadata=None):
         super().__init__()
-        
-        self.parent = parent
+        self.set_transient_for(parent)
         self.path = str(path)  # Ensure path is string
         self.duration = 0
         self.is_fullscreen = False
@@ -130,6 +130,11 @@ class VideohPlayer(Adw.Window):
         self.playbin.set_state(Gst.State.PLAYING)
         self.play_button.set_icon_name('media-playback-pause-symbolic')
 
+        # Set up volume control
+        self.volume_scale.set_range(0, 1)
+        GLib.idle_add(lambda: self.volume_scale.set_value(1.0))  # Set default volume after widget is realized
+        self.volume_scale.connect('value-changed', self.on_volume_changed)
+
     def on_message(self, bus, message):
         t = message.type
         if t == Gst.MessageType.EOS:
@@ -204,33 +209,27 @@ class VideohPlayer(Adw.Window):
         return False
 
     def on_mouse_enter(self, controller, x, y):
-        print("Mouse entered")  # Debug
         self.mouse_inside = True
         self.show_ui()
         
     def on_mouse_leave(self, controller):
-        print("Mouse left")  # Debug
         self.mouse_inside = False
         self.schedule_hide_ui()
         
     def on_mouse_motion(self, controller, x, y):
-        print(f"Mouse motion at {x},{y}")  # Debug
         self.show_ui()
         self.schedule_hide_ui()
         
     def on_controls_enter(self, controller, x, y):
-        print("Controls entered")  # Debug
         self.mouse_inside = True
         self.show_ui()
         
     def on_controls_leave(self, controller):
-        print("Controls left")  # Debug
         self.mouse_inside = False
         if self.is_fullscreen:
             self.schedule_hide_ui()
 
     def show_ui(self):
-        print("Showing UI")  # Debug
         self.header_bar.set_visible(True)
         self.controls.set_visible(True)
         self.ui_visible = True
@@ -241,7 +240,6 @@ class VideohPlayer(Adw.Window):
             self.schedule_hide_ui()
 
     def hide_ui(self):
-        print("Hiding UI")  # Debug
         if self.is_fullscreen and not self.mouse_inside:
             self.header_bar.set_visible(False)
             self.controls.set_visible(False)
@@ -254,7 +252,6 @@ class VideohPlayer(Adw.Window):
         return True  # Keep timer running if conditions not met
 
     def schedule_hide_ui(self):
-        print("Scheduling hide UI")  # Debug
         if not self.is_fullscreen:
             return
             
@@ -276,3 +273,7 @@ class VideohPlayer(Adw.Window):
             self.is_fullscreen = False
             return True
         return False
+
+    def on_volume_changed(self, scale):
+        volume = scale.get_value()
+        self.playbin.set_property('volume', volume)

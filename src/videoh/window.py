@@ -944,7 +944,7 @@ class VideohWindow(Adw.ApplicationWindow):
             if match:
                 return int(match.group(1) or match.group(2) or match.group(3))
         except Exception as e:
-            print(f"Error extracting episode number from {filename}: {e}")  # Debug print
+            print(f"Error extracting episode number from {filename}: {e}")
         return None
 
     def get_episode_metadata(self, episode_path):
