@@ -122,6 +122,18 @@ class EpisodesUI(Gtk.Box):
         .rounded-corners {
             border-radius: 12px;
         }
+
+        .episode-row {
+            transition: background-color 200ms ease;
+        }
+        
+        .episode-row:hover {
+            background-color: alpha(@accent_color, 0.08);
+        }
+        
+        .episode-row:active {
+            background-color: alpha(@accent_color, 0.12);
+        }
         """
         css_provider = Gtk.CssProvider()
         css_provider.load_from_data(css_string.encode(), -1)
@@ -159,6 +171,14 @@ class EpisodesUI(Gtk.Box):
             
             # Create row with episode info
             row = Adw.ActionRow()
+            row.add_css_class('episode-row')  # Add class for hover styling
+            
+            # Make entire row clickable
+            click = Gtk.GestureClick.new()
+            click.connect('pressed', 
+                lambda g, n, x, y, e: self.parent_window.show_movie_details(e), 
+                episode)
+            row.add_controller(click)
             
             # Add episode number button on the left
             ep_button = Gtk.Button()
@@ -220,14 +240,7 @@ class EpisodesUI(Gtk.Box):
                 episode)
             row.add_suffix(play_button)
             
-            # Add info button
-            info_button = Gtk.Button()
-            info_button.set_icon_name('right-large-symbolic')
-            info_button.add_css_class('flat')
-            info_button.connect('clicked',
-                lambda b, e: self.parent_window.show_movie_details(e),
-                episode)
-            row.add_suffix(info_button)
+            # Remove the info button since row is now clickable
             
             self.episodes_box.append(row)
 
