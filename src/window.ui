@@ -14,7 +14,7 @@
             <child>
               <object class="AdwNavigationPage">
                 <property name="tag">main</property>
-                <property name="title">Vide OH!</property>
+                <property name="title">Home Cinema</property>
                 <child>
                   <object class="AdwToolbarView">
                     <child type="top">
