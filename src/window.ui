@@ -21,10 +21,9 @@
                         <property name="centering-policy">strict</property>
                         
                         <child type="start">
-                          <object class="GtkMenuButton" id="add_btn">
-                            <property name="icon-name">plus</property>
-                            <property name="tooltip-text" translatable="yes">Add a title to your library</property>
-                            <property name="menu-model">add_menu</property>
+                          <object class="GtkButton" id="refresh_button">
+                            <property name="icon-name">view-refresh-symbolic</property>
+                            <property name="tooltip-text" translatable="yes">Refresh</property>
                           </object>
                         </child>
 
@@ -169,22 +168,12 @@
       <item>
         <attribute name="label" translatable="yes">_Refresh</attribute>
         <attribute name="action">win.refresh</attribute>
+        <attribute name="icon">view-refresh-symbolic</attribute>
       </item>
       <item>
         <attribute name="label" translatable="yes">_Preferences</attribute>
         <attribute name="action">app.preferences</attribute>
       </item>
     </section>
-  </menu>
-
-  <menu id="add_menu">
-    <item>
-      <attribute name="label" translatable="yes">From The Movie Database (TMDB)</attribute>
-      <attribute name="action">win.add-tmdb</attribute>
-    </item>
-    <item>
-      <attribute name="label" translatable="yes">Manually</attribute>
-      <attribute name="action">win.add-manual</attribute>
-    </item>
   </menu>
 </interface>

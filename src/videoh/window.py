@@ -34,6 +34,7 @@ from .item import VideohItem
 from .player import VideohPlayer
 from .episodes import EpisodesUI
 import re
+import threading
 
 @Gtk.Template(resource_path='/space/koyu/videoh/settings.ui')
 class VideohPreferencesWindow(Adw.PreferencesWindow):
@@ -79,6 +80,7 @@ class VideohWindow(Adw.ApplicationWindow):
     movies_box = Gtk.Template.Child()
     shows_box = Gtk.Template.Child()
     toast_overlay = Gtk.Template.Child()
+    refresh_button = Gtk.Template.Child()
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -102,6 +104,9 @@ class VideohWindow(Adw.ApplicationWindow):
         # Check for auto-fetch setting
         if self.settings.get_boolean('auto-fetch'):
             GLib.idle_add(self.on_fetch_metadata, None, None)
+        
+        # Connect refresh button
+        self.refresh_button.connect('clicked', lambda _: self.on_fetch_metadata(None, None))
 
     def setup_actions(self):
         # Add actions to the application
@@ -253,313 +258,213 @@ class VideohWindow(Adw.ApplicationWindow):
 
     def on_fetch_metadata(self, action, param):
         settings = Gio.Settings.new('space.koyu.videoh')
+
+        # Create progress dialog
+        progress_dialog = Adw.MessageDialog.new(
+            self,
+            _("Fetching Metadata"),
+            _("Please wait while fetching metadata...")
+        )
         
-        # Fetch movie metadata using IMDb
-        if settings.get_boolean('use-imdb'):
-            imdb = self.get_imdb()
-            
-            progress_dialog = Adw.MessageDialog.new(
-                self,
-                _("Fetching Metadata"),
-                _("Please wait while fetching metadata...")
-            )
-            progress_dialog.present()
-            
+        # Add a spinner to show activity
+        spinner = Gtk.Spinner()
+        spinner.start()
+        spinner.set_size_request(32, 32)
+        spinner.set_margin_top(12)
+        spinner.set_margin_bottom(12)
+        progress_dialog.set_extra_child(spinner)
+        
+        # Add cancel button
+        progress_dialog.add_response("cancel", _("Cancel"))
+        
+        # Present dialog before starting the thread
+        progress_dialog.present()
+        
+        def fetch_metadata_async():
             try:
-                # Fetch movie metadata
-                for movie in self.movies:
-                    try:
-                        results = imdb.search_movie(movie['title'])
-                        if results:
-                            first_result = results[0]
-                            details = imdb.get_movie(first_result['movieID'])
-                            
-                            if details:
-                                # Download and cache the poster
-                                poster_url = details.get('full-size cover url', '')
-                                local_poster = self.download_poster(poster_url, details.get('title', movie['title']))
-                                
-                                # Cache director images
-                                director_images = []
-                                directors = []
-                                for director in details.get('directors', []):
-                                    if isinstance(director, dict):
-                                        director_name = director.get('name', '')
-                                        director_img_url = director.get('image', '')
-                                        local_dir_img = self.download_person_image(
-                                            director_img_url, director_name, "directors"
-                                        )
-                                        director_images.append(local_dir_img)
-                                        directors.append(director_name)
-                                
-                                # Cache cast images
-                                cast_images = []
-                                cast = []
-                                for actor in details.get('cast', [])[:10]:  # Limit to top 10 cast members
-                                    if isinstance(actor, dict):
-                                        actor_name = actor.get('name', '')
-                                        actor_img_url = actor.get('image', '')
-                                        local_cast_img = self.download_person_image(
-                                            actor_img_url, actor_name, "cast"
-                                        )
-                                        cast_images.append(local_cast_img)
-                                        cast.append(actor_name)
-                                
-                                metadata = {
-                                    'title': details.get('title', movie['title']),
-                                    'plot': details.get('plot outline', ''),
-                                    'poster': local_poster,
-                                    'poster_url': poster_url,
-                                    'rating': details.get('rating', ''),
-                                    'genre': details.get('genres', []),
-                                    'year': details.get('year', ''),
-                                    'directors': directors,
-                                    'director_images': director_images,
-                                    'cast': cast,
-                                    'cast_images': cast_images
-                                }
-                                
-                                # Update movie object with new metadata
-                                movie['metadata'] = metadata
-                                self.update_metadata(movie['path'], metadata)
-                                
-                    except Exception as e:
-                        print(f"Error fetching metadata for {movie['title']}: {e}")
-                        continue
+                # First ensure we're on the main thread for any GTK operations
+                GLib.idle_add(lambda: progress_dialog.set_visible(True))
                 
-                # Fetch TV show metadata
-                for show_name, seasons in self.shows.items():
-                    try:
-                        # Search for show
-                        results = imdb.search_tv(show_name)
-                        if results:
-                            first_result = results[0]
-                            show_details = imdb.get_show(first_result['seriesID'])
+                # Fetch movie metadata using IMDb
+                if settings.get_boolean('use-imdb'):
+                    imdb = self.get_imdb()
+                    if imdb:
+                        # Process movies
+                        for movie in self.movies:
+                            # Check if operation was cancelled
+                            if not progress_dialog.get_visible():
+                                return
                             
-                            if show_details:
-                                # Download and cache show poster
-                                poster_url = show_details.get('full-size cover url', '')
-                                local_poster = self.download_poster(poster_url, show_name)
-                                
-                                # Cache creator/showrunner images
-                                creator_images = []
-                                creators = []
-                                for creator in show_details.get('creators', []):
-                                    if isinstance(creator, dict):
-                                        creator_name = creator.get('name', '')
-                                        creator_img_url = creator.get('image', '')
-                                        local_creator_img = self.download_person_image(
-                                            creator_img_url, creator_name, "creators"
-                                        )
-                                        creator_images.append(local_creator_img)
-                                        creators.append(creator_name)
-                                
-                                # Cache main cast images
-                                cast_images = []
-                                cast = []
-                                for actor in show_details.get('cast', [])[:10]:
-                                    if isinstance(actor, dict):
-                                        actor_name = actor.get('name', '')
-                                        actor_img_url = actor.get('image', '')
-                                        local_cast_img = self.download_person_image(
-                                            actor_img_url, actor_name, "cast"
-                                        )
-                                        cast_images.append(local_cast_img)
-                                        cast.append(actor_name)
-                                
-                                # Create base show metadata
-                                show_metadata = {
-                                    'title': show_details.get('title', show_name),
-                                    'plot': show_details.get('plot outline', ''),
-                                    'poster': local_poster,
-                                    'poster_url': poster_url,
-                                    'rating': show_details.get('rating', ''),
-                                    'genre': show_details.get('genres', []),
-                                    'year': show_details.get('year', ''),
-                                    'creators': creators,
-                                    'creator_images': creator_images,
-                                    'cast': cast,
-                                    'cast_images': cast_images,
-                                    'number_of_seasons': show_details.get('number of seasons', 0),
-                                    'type': 'show'
-                                }
-                                
-                                # Fetch episode-specific metadata
-                                for season_num, episodes in seasons.items():
-                                    season_details = imdb.get_season(first_result['seriesID'], int(season_num))
+                            # Update progress text safely
+                            GLib.idle_add(
+                                lambda m=movie: progress_dialog.set_body(
+                                    _("Processing movie: {}").format(m['title'])
+                                )
+                            )
+                            
+                            try:
+                                # Search for movie
+                                search_results = imdb.search_movie(movie['title'])
+                                if search_results:
+                                    # Get first matching result - handle both object and dict formats
+                                    first_result = search_results[0]
+                                    movie_id = first_result.getID() if hasattr(first_result, 'getID') else first_result.get('movieID')
                                     
-                                    for episode in episodes:
-                                        episode_title = episode['title']
-                                        # Find matching episode in season details
-                                        for ep_details in season_details.get('episodes', []):
-                                            if self._title_matches(episode_title, ep_details.get('title', '')):
-                                                episode_metadata = show_metadata.copy()
-                                                episode_metadata.update({
-                                                    'episode_title': ep_details.get('title', episode_title),
-                                                    'episode_plot': ep_details.get('plot', ''),
-                                                    'episode_number': ep_details.get('episode number', 0),
-                                                    'season_number': season_num,
-                                                    'air_date': ep_details.get('original air date', ''),
-                                                    'rating': ep_details.get('rating', '')
-                                                })
-                                                self.update_metadata(episode['path'], episode_metadata)
-                                                break
-                        
-                    except Exception as e:
-                        print(f"Error fetching metadata for show {show_name}: {e}")
-                        continue
-
-                # Show success toast
-                progress_dialog.close()
-                toast = Adw.Toast.new(_("Successfully fetched metadata"))
-                toast.set_timeout(3)
-                self.toast_overlay.add_toast(toast)
-                
-            except Exception as e:
-                progress_dialog.close()
-                error_dialog = Adw.MessageDialog.new(
-                    self,
-                    _("Error"),
-                    _("Failed to fetch metadata: {}").format(str(e))
-                )
-                error_dialog.add_response("ok", _("OK"))
-                error_dialog.present()
-
-        # Fetch TV show metadata using TVMaze
-        if settings.get_boolean('use-tvmaze'):
-            tvmaze = self.get_tvmaze()
-            if not tvmaze:
-                return
-                
-            progress_dialog = Adw.MessageDialog.new(
-                self,
-                _("Fetching Metadata"),
-                _("Please wait while fetching metadata from TVMaze...")
-            )
-            progress_dialog.present()
-            
-            try:
-                for show_name, seasons in self.shows.items():
-                    try:
-                        # Search for show
-                        results = tvmaze.search_tv(show_name)
-                        if results:
-                            first_result = results[0]
-                            show_details = tvmaze.get_show(first_result['seriesID'])
-                            
-                            if show_details:
-                                # Process show metadata first
-                                poster_url = show_details.get('full-size cover url', '')
-                                local_poster = self.download_poster(poster_url, show_name)
-                                
-                                # Process cast
-                                cast_images = []
-                                cast = []
-                                for actor in show_details.get('cast', []):
-                                    actor_name = actor['name']
-                                    actor_img_url = actor.get('image')
-                                    if actor_img_url:
-                                        local_cast_img = self.download_person_image(
-                                            actor_img_url, actor_name, "cast"
-                                        )
-                                        cast_images.append(local_cast_img)
-                                    cast.append(actor_name)
-                                
-                                # Create show metadata
-                                show_metadata = {
-                                    'title': show_details['title'],
-                                    'plot': show_details['plot outline'],
-                                    'poster': local_poster,
-                                    'poster_url': poster_url,
-                                    'genres': show_details['genres'],
-                                    'year': show_details['year'],
-                                    'type': 'show',
-                                    'is_show': True,
-                                    'show_name': show_name,
-                                    'rating': show_details.get('rating'),
-                                    'cast': cast,
-                                    'cast_images': cast_images,
-                                    'episodes': {}  # Initialize episodes dict
-                                }
-                                
-                                # Process episodes for each season
-                                for season_num, episodes in seasons.items():
-                                    # Initialize season array in episodes dictionary
-                                    show_metadata['episodes'][str(season_num)] = []
-
-                                    # Get season episodes from TVMaze
-                                    season_details = tvmaze.get_season(first_result['seriesID'], int(season_num))
-
-                                    if season_details and 'episodes' in season_details:
-                                        tvmaze_episodes = season_details['episodes']
-
-                                        for episode_file in episodes:
-                                            ep_num = self._get_episode_number(episode_file['title'])
-                                            print(f"Extracted episode number for {episode_file['title']}: {ep_num}")  # Debug print
-                                            if ep_num is None:
-                                                continue
-
-                                            # Find matching episode in TVMaze data
-                                            matching_ep = next(
-                                                (ep for ep in tvmaze_episodes 
-                                                if ep.get('episode_number') == ep_num),
-                                                None
+                                    if movie_id:
+                                        movie_data = imdb.get_movie(movie_id)
+                                        
+                                        # Build metadata
+                                        metadata = {
+                                            'title': movie_data.get('title'),
+                                            'year': movie_data.get('year'),
+                                            'rating': movie_data.get('rating'),
+                                            'plot': movie_data.get('plot outline', ''),
+                                            'director': [p['name'] for p in movie_data.get('director', [])],
+                                            'cast': [p['name'] for p in movie_data.get('cast', [])[:5]],
+                                            'genres': movie_data.get('genres', []),
+                                            'type': 'movie'
+                                        }
+                                        
+                                        # Download poster if available
+                                        if movie_data.get('full-size cover url'):
+                                            poster_path = self.download_poster(
+                                                movie_data['full-size cover url'],
+                                                movie['title']
                                             )
-
-                                            if matching_ep:
-                                                print(f"Found matching episode for {episode_file['title']}: {matching_ep}")  # Debug print
-                                                # Create episode metadata using TVMaze data format
-                                                episode_metadata = {
-                                                    'type': 'episode',
-                                                    'is_episode': True,
-                                                    'show_name': show_name,
-                                                    'show_title': show_details['title'],
-                                                    'episode_title': matching_ep.get('episode_title', episode_file['title']),  # Use TVMaze field name
-                                                    'title': matching_ep.get('title', episode_file['title']),
-                                                    'episode_number': matching_ep.get('episode_number', ''),
-                                                    'season_number': matching_ep.get('season_number', season_num),
-                                                    'air_date': matching_ep.get('air_date', ''),
-                                                    'rating': matching_ep.get('rating', None),
-                                                    'plot': matching_ep.get('plot', ''),
-                                                    'image_url': matching_ep.get('image_url', None),
-                                                    'runtime': matching_ep.get('runtime', None),
-                                                    'poster': local_poster,
-                                                    'poster_url': poster_url,
-                                                    'file_path': episode_file['path']
-                                                }
-
-                                                # Add to show's episode list
-                                                show_metadata['episodes'][str(season_num)].append(episode_metadata)
-
-                                                # Also save episode-specific metadata
-                                                self.metadata[episode_file['path']] = episode_metadata
-
-                                # Save show metadata
-                                show_key = f"show:{show_name}"
-                                self.metadata[show_key] = show_metadata
-
-                                # Save to disk
-                                self.save_metadata()
+                                            if poster_path:
+                                                metadata['poster'] = poster_path
+                                        
+                                        # Update metadata
+                                        self.update_metadata(movie['path'], metadata)
+                            except Exception as e:
+                                print(f"Error processing movie {movie['title']}: {e}")
+                                continue
+                                
+                # Fetch TV show metadata using TVMaze            
+                if settings.get_boolean('use-tvmaze'):
+                    tvmaze = self.get_tvmaze()
+                    if tvmaze:
+                        # Process shows
+                        for show_name, seasons in self.shows.items():
+                            # Check if operation was cancelled
+                            if progress_dialog.get_visible() is False:
+                                return
+                                
+                            GLib.idle_add(
+                                progress_dialog.set_body,
+                                _("Processing show: {}").format(show_name)
+                            )
+                            
+                            try:
+                                # Search for show
+                                search_results = tvmaze.search_shows(show_name)
+                                if search_results:
+                                    show_data = search_results[0]['show']
+                                    
+                                    # Build show metadata
+                                    show_metadata = {
+                                        'title': show_data.get('name'),
+                                        'year': show_data.get('premiered', '').split('-')[0],
+                                        'rating': show_data.get('rating', {}).get('average'),
+                                        'plot': show_data.get('summary', ''),
+                                        'genres': show_data.get('genres', []),
+                                        'type': 'show',
+                                        'status': show_data.get('status'),
+                                        'network': show_data.get('network', {}).get('name')
+                                    }
+                                    
+                                    # Download show poster
+                                    if show_data.get('image', {}).get('original'):
+                                        poster_path = self.download_poster(
+                                            show_data['image']['original'],
+                                            show_name
+                                        )
+                                        if poster_path:
+                                            show_metadata['poster'] = poster_path
+                                    
+                                    # Store show metadata
+                                    show_key = f"show:{show_name}"
+                                    self.metadata[show_key] = show_metadata
+                                    
+                                    # Get episodes data
+                                    episodes_data = tvmaze.get_show_episodes(show_data['id'])
+                                    
+                                    # Process each local episode
+                                    for season_num, episodes in seasons.items():
+                                        for episode in episodes:
+                                            episode_number = self._get_episode_number(episode['title'])
+                                            if episode_number:
+                                                # Find matching episode in TVMaze data
+                                                tvmaze_episode = next(
+                                                    (e for e in episodes_data 
+                                                     if e['season'] == int(season_num) 
+                                                     and e['number'] == episode_number),
+                                                    None
+                                                )
+                                                
+                                                if tvmaze_episode:
+                                                    episode_metadata = {
+                                                        'title': tvmaze_episode.get('name'),
+                                                        'plot': tvmaze_episode.get('summary', ''),
+                                                        'air_date': tvmaze_episode.get('airdate'),
+                                                        'season': season_num,
+                                                        'episode': episode_number,
+                                                        'is_episode': True,
+                                                        'show_name': show_name
+                                                    }
+                                                    
+                                                    # Update episode metadata
+                                                    self.update_metadata(episode['path'], episode_metadata)
+                        
+                            except Exception as e:
+                                print(f"Error processing show {show_name}: {e}")
+                                continue
                 
-                    except Exception as e:
-                        print(f"Error fetching metadata for show {show_name}: {e}")
-                        continue
+                # Save all metadata changes
+                self.save_metadata()
                 
-                progress_dialog.close()
-                
-                # Reload UI
-                self.load_library()
-                self.populate_ui()
+                # Update UI in main thread
+                GLib.idle_add(self._finish_metadata_refresh)
                 
             except Exception as e:
-                progress_dialog.close()
-                error_dialog = Adw.MessageDialog.new(
-                    self,
-                    _("Error"),
-                    _("Failed to fetch metadata from TVMaze: {}").format(str(e))
-                )
-                error_dialog.add_response("ok", _("OK"))
-                error_dialog.present()
+                GLib.idle_add(self._show_error_dialog, str(e))
+            finally:
+                GLib.idle_add(progress_dialog.close)
+        
+        # Handle dialog response
+        def on_response(dialog, response):
+            if response == "cancel":
+                dialog.close()
+        
+        progress_dialog.connect("response", on_response)
+        progress_dialog.present()
+        
+        # Start metadata fetch in background thread
+        thread = threading.Thread(target=fetch_metadata_async)
+        thread.daemon = True
+        thread.start()
+
+    def _finish_metadata_refresh(self):
+        """Complete the metadata refresh by updating UI"""
+        self.load_library()
+        self.populate_ui()
+        
+        # Show success toast
+        toast = Adw.Toast.new(_("Successfully fetched metadata"))
+        toast.set_timeout(3)
+        self.toast_overlay.add_toast(toast)
+        return False
+
+    def _show_error_dialog(self, error_message):
+        """Show error dialog for metadata fetch failures"""
+        dialog = Adw.MessageDialog.new(
+            self,
+            _("Error"),
+            _("Failed to fetch metadata: {}").format(error_message)
+        )
+        dialog.add_response("ok", _("OK"))
+        dialog.present()
+        return False
 
     def get_imdb(self):
         """Initialize IMDb client if enabled in settings"""
