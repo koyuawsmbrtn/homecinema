@@ -250,9 +250,10 @@ class EpisodesUI(Gtk.Box):
             play_button.set_valign(Gtk.Align.CENTER)
             play_button.add_css_class('circular')
             play_button.add_css_class('flat')
-            play_button.connect('clicked', 
-                lambda b, e: self.on_episode_clicked(episode), 
-                episode)
+            # Create a closure to properly capture the episode
+            def make_click_handler(ep):
+                return lambda b: self.on_episode_clicked(ep)
+            play_button.connect('clicked', make_click_handler(episode))
             row.add_suffix(play_button)
             
             # Remove the info button since row is now clickable
@@ -268,7 +269,6 @@ class EpisodesUI(Gtk.Box):
             self.populate_season(season_num)
 
     def on_episode_clicked(self, episode):
-        print(f"Playing episode: {episode}")
         show_metadata = episode["metadata"]
         self.parent_window.show_video(
             episode['path'],
