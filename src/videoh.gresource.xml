@@ -9,5 +9,7 @@
     <file preprocess="xml-stripblanks">gtk/help-overlay.ui</file>
     <file preprocess="xml-stripblanks">icons/scalable/actions/video-reel2-symbolic.svg</file>
     <file preprocess="xml-stripblanks">icons/scalable/actions/info-outline-symbolic.svg</file>
+    <file preprocess="xml-stripblanks">icons/scalable/actions/camera-broken-symbolic.svg</file>
+    <file preprocess="xml-stripblanks">icons/scalable/actions/right-large-symbolic.svg</file>
   </gresource>
 </gresources>

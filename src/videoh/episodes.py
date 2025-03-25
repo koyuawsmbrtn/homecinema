@@ -31,29 +31,35 @@ class EpisodesUI(Gtk.Box):
         show_key = f"show:{show_name}"
         show_metadata = self.parent_window.metadata.get(show_key, {})
         
-        # Update show info with HTML unescaping
-        self.show_title.set_label(html.unescape(show_metadata.get('title', show_name)))
-        self.show_year.set_label(str(show_metadata.get('year', '')))
-        self.show_genres.set_label(', '.join(show_metadata.get('genres', [])))
+        # Update show info with safe HTML unescaping
+        title = show_metadata.get('title') or show_name
+        self.show_title.set_label(html.unescape(str(title)))
         
-        # Clean and set plot
+        # Handle other metadata safely
+        year = show_metadata.get('year', '')
+        self.show_year.set_label(str(year) if year else '')
+        
+        genres = show_metadata.get('genres', [])
+        self.show_genres.set_label(', '.join(genres) if genres else '')
+        
+        # Clean and set plot safely
         plot = show_metadata.get('plot', '')
         if plot:
             # Remove HTML tags and unescape
-            plot = re.sub(r'<[^>]+>', '', plot)
+            plot = re.sub(r'<[^>]+>', '', str(plot))
             plot = html.unescape(plot)
         self.show_plot.set_label(plot)
         
         # Set rating with star symbol
-        rating = show_metadata.get('rating', '')
-        if rating:
+        rating = show_metadata.get('rating')
+        if rating and str(rating).lower() != 'none':
             self.show_rating.set_label(f"★ {rating}")
         else:
             self.show_rating.set_visible(False)
         
-        # Set cast info
+        # Set cast info safely
         cast = show_metadata.get('cast', [])
-        if cast:
+        if cast and isinstance(cast, list):
             cast_text = "Cast: " + ", ".join(cast[:5])  # Show first 5 cast members
             if len(cast) > 5:
                 cast_text += f" and {len(cast) - 5} more"
@@ -83,56 +89,41 @@ class EpisodesUI(Gtk.Box):
         # Show first season
         self.populate_season(next(iter(seasons.keys())))
 
+        # Apply CSS styling
         css_string = """
-        .episode-subtitle {
-            margin-top: 6px;
-        }
-
-        .episode-plot {
-            opacity: 0.7;
-            margin-top: 3px;
-        }
-
-        .show-info-box {
-            background: @card_bg_color;
-            border-radius: 12px;
-            padding: 12px;
-        }
-
-        .show-title {
-            font-size: 24px;
-            font-weight: bold;
-        }
-
-        .show-year {
-            font-size: 16px;
-            opacity: 0.8;
-        }
-
-        .show-genres {
+        .episode-number {
+            min-width: 32px;
+            min-height: 32px;
+            padding: 0;
+            margin: 8px;
             font-size: 14px;
-            opacity: 0.7;
-        }
-
-        .rating-label {
-            font-size: 15px;
+            font-weight: bold;
+            text-align: center;
+            background: alpha(@accent_color, 0.15);
             color: @accent_color;
-            font-weight: bold;
+            border-radius: 50%;
         }
 
-        .cast-label {
-            font-size: 14px;
-            opacity: 0.8;
+        .episode-number:disabled {
+            opacity: 1.0;
         }
 
-        .show-plot {
-            margin-top: 24px;
-            font-size: 15px;
-            line-height: 1.4;
+        .episode-list row {
+            padding: 12px;
+            margin: 2px;
+        }
+
+        .episode-list row > box {
+            margin-left: 12px;
+            margin-right: 12px;
+        }
+
+        .rounded-corners {
+            border-radius: 12px;
         }
         """
         css_provider = Gtk.CssProvider()
-        css_provider.load_from_data(css_string, -1)
+        css_provider.load_from_data(css_string.encode(), -1)
         self.get_style_context().add_provider(css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
     def populate_season(self, season_num):
@@ -143,35 +134,50 @@ class EpisodesUI(Gtk.Box):
         while (child := self.episodes_box.get_first_child()):
             self.episodes_box.remove(child)
         
+        # Sort episodes by episode number
+        sorted_episodes = []
         for episode in episodes:
+            try:
+                filename = Path(episode['path']).stem
+                ep_match = re.search(r'[Ss]\d+[Ee](\d+)|[Ee](\d+)|(\d+)$', filename)
+                if ep_match:
+                    ep_num = int(ep_match.group(1) or ep_match.group(2) or ep_match.group(3))
+                    sorted_episodes.append((ep_num, episode))
+            except Exception as e:
+                print(f"Error parsing episode number: {e}")
+                # Add episodes without numbers to the end
+                sorted_episodes.append((float('inf'), episode))
+        
+        # Sort by episode number
+        sorted_episodes.sort(key=lambda x: x[0])
+        
+        for ep_num, episode in sorted_episodes:
             # Get combined show and episode metadata
             episode_path = episode['path']
             metadata = self.parent_window.get_episode_metadata(episode_path)
             
-            # Get episode title in order of preference
-            episode_title = None
+            # Create row with episode info
+            row = Adw.ActionRow()
+            
+            # Add episode number button on the left
+            ep_button = Gtk.Button()
+            ep_button.set_label(str(ep_num))
+            ep_button.add_css_class('circular')
+            ep_button.add_css_class('episode-number')
+            ep_button.set_sensitive(False)  # Make it non-clickable
+            row.add_prefix(ep_button)
+            
+            # Get episode title without the episode number prefix
             if metadata:
-                # Try metadata first
                 if metadata.get('episode_title'):
                     episode_title = metadata['episode_title']
                 elif metadata.get('title'):
                     episode_title = metadata['title']
-            
-            # Fallback to filename parsing if no metadata
-            if not episode_title:
-                try:
-                    filename = Path(episode['path']).stem
-                    ep_match = re.search(r'[Ss]\d+[Ee](\d+)|[Ee](\d+)|(\d+)$', filename)
-                    if ep_match:
-                        ep_num = ep_match.group(1) or ep_match.group(2)
-                        episode_title = f"Episode {int(ep_num)}"
-                    else:
-                        episode_title = "Unknown Episode"
-                except:
-                    episode_title = "Unknown Episode"
-            
-            # Create row with episode info
-            row = Adw.ActionRow()
+                else:
+                    episode_title = f"Episode {ep_num}"
+            else:
+                episode_title = f"Episode {ep_num}"
+                
             row.set_title(episode_title)
             
             # Add episode metadata if available
@@ -215,7 +221,7 @@ class EpisodesUI(Gtk.Box):
             
             # Add info button
             info_button = Gtk.Button()
-            info_button.set_icon_name('info-symbolic')
+            info_button.set_icon_name('right-large-symbolic')
             info_button.add_css_class('flat')
             info_button.connect('clicked',
                 lambda b, e: self.parent_window.show_movie_details(e),

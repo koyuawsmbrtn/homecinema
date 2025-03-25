@@ -2,7 +2,7 @@ import gi
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
 
-from gi.repository import Gtk, Adw, GdkPixbuf, Gio, GLib
+from gi.repository import Gtk, Adw, GdkPixbuf, Gio, GLib, Pango
 from pathlib import Path
 from gettext import gettext as _
 import html
@@ -64,7 +64,7 @@ class VideohItem(Gtk.Box):
             else:
                 # Movie formatting 
                 title = html.unescape(self.metadata.get('title', ''))
-                year = self.metadata.get('year', '')
+                year = str(self.metadata.get('year', ''))
 
             # Common metadata
             plot = self.metadata.get('plot', '')
@@ -72,24 +72,37 @@ class VideohItem(Gtk.Box):
                 # Clean HTML and unescape
                 plot = re.sub(r'<[^>]+>', '', plot)
                 plot = html.unescape(plot)
-                
+            
             genres = self.metadata.get('genres', [])
-            rating = self.metadata.get('rating', '')
+            rating = self.metadata.get('rating')
             
             # Update UI elements
-            if rating:
+            if rating and rating != "null":
                 title = f"{title} (★ {rating})"
             
-            self.title_label.set_label(title)
-            self.year_label.set_label(str(year))
-            self.plot_label.set_label(plot)
-            self.genre_label.set_label(', '.join(genres))
+            self.title_label.set_label(title or "")
+            self.year_label.set_label(year or "")
+            self.plot_label.set_label(plot or "")
+            self.genre_label.set_label(', '.join(genres) if genres else "")
             
             # Update poster
             self.load_poster()
             
-            # Update people
-            self.update_person_images()
+            # Handle cast members
+            self.cast_flowbox.remove_all()
+            cast = self.metadata.get('cast', [])
+            if isinstance(cast, list):
+                for actor in cast:
+                    if isinstance(actor, str):
+                        self.add_person_label(actor, self.cast_flowbox)
+            
+            # Handle directors
+            self.directors_flowbox.remove_all()
+            directors = self.metadata.get('director', [])
+            if isinstance(directors, list):
+                for director in directors:
+                    if isinstance(director, str):
+                        self.add_person_label(director, self.directors_flowbox)
 
         except Exception as e:
             print(f"Error loading metadata: {e}")
@@ -160,6 +173,26 @@ class VideohItem(Gtk.Box):
             flowbox.append(box)
         except Exception as e:
             print(f"Error adding person image: {e}")
+
+    def add_person_label(self, name, flowbox):
+        """Add a person label to the flowbox"""
+        try:
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+            box.set_margin_start(6)
+            box.set_margin_end(6)
+            box.set_margin_top(6)
+            box.set_margin_bottom(6)
+            
+            label = Gtk.Label(label=name)
+            label.set_wrap(True)
+            label.set_max_width_chars(15)
+            label.set_lines(2)
+            label.set_ellipsize(Pango.EllipsizeMode.END)
+            
+            box.append(label)
+            flowbox.append(box)
+        except Exception as e:
+            print(f"Error adding person label: {e}")
 
     @Gtk.Template.Callback()
     def on_poster_clicked(self, button):

@@ -42,6 +42,7 @@
                   <object class="GtkPicture" id="show_poster">
                     <property name="width-request">150</property>
                     <property name="height-request">250</property>
+                    <property name="content-fit">cover</property>
                     <style>
                       <class name="rounded-corners"/>
                     </style>
@@ -123,9 +124,13 @@
             <child>
               <object class="GtkListBox" id="episodes_box">
                 <property name="selection-mode">none</property>
+                <property name="vexpand">true</property>
+                <property name="margin-top">6</property>
+                <property name="margin-bottom">6</property>
                 <style>
                   <class name="boxed-list"/>
                   <class name="episode-list"/>
+                  <class name="content-list"/>
                 </style>
               </object>
             </child>

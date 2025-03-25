@@ -278,6 +278,10 @@ class VideohWindow(Adw.ApplicationWindow):
     def _fetch_movie_metadata(self, imdb, movie, progress_dialog):
         """Fetch metadata for a single movie"""
         try:
+            # Skip if movie already has metadata
+            if movie.get('metadata', {}).get('title'):
+                return
+                
             # Search for movie
             search_results = imdb.search_movie(movie['title'])
             if search_results:
@@ -319,65 +323,72 @@ class VideohWindow(Adw.ApplicationWindow):
         """Fetch metadata for a single TV show and its episodes"""
         try:
             # Search for show
-            search_results = tvmaze.search_shows(show_name)
+            search_results = tvmaze.search_tv(show_name)
             if search_results:
-                show_data = search_results[0]['show']
+                # Get first result
+                show_id = search_results[0]['seriesID']
                 
-                # Build show metadata
-                show_metadata = {
-                    'title': show_data.get('name'),
-                    'year': show_data.get('premiered', '').split('-')[0],
-                    'rating': show_data.get('rating', {}).get('average'),
-                    'plot': show_data.get('summary', ''),
-                    'genres': show_data.get('genres', []),
-                    'type': 'show',
-                    'status': show_data.get('status'),
-                    'network': show_data.get('network', {}).get('name')
-                }
-                
-                # Download show poster
-                if show_data.get('image', {}).get('original'):
-                    poster_path = self.download_poster(
-                        show_data['image']['original'],
-                        show_name
-                    )
-                    if poster_path:
-                        show_metadata['poster'] = poster_path
-                
-                # Store show metadata
-                show_key = f"show:{show_name}"
-                self.metadata[show_key] = show_metadata
-                
-                # Get episodes data
-                episodes_data = tvmaze.get_show_episodes(show_data['id'])
-                
-                # Process each local episode
-                for season_num, episodes in seasons.items():
-                    for episode in episodes:
-                        episode_number = self._get_episode_number(episode['title'])
-                        if episode_number:
-                            # Find matching episode in TVMaze data
-                            tvmaze_episode = next(
-                                (e for e in episodes_data 
-                                 if e['season'] == int(season_num) 
-                                 and e['number'] == episode_number),
-                                None
-                            )
-                            
-                            if tvmaze_episode:
-                                episode_metadata = {
-                                    'title': tvmaze_episode.get('name'),
-                                    'plot': tvmaze_episode.get('summary', ''),
-                                    'air_date': tvmaze_episode.get('airdate'),
-                                    'season': season_num,
-                                    'episode': episode_number,
-                                    'is_episode': True,
-                                    'show_name': show_name
-                                }
-                                
-                                # Update episode metadata
-                                self.update_metadata(episode['path'], episode_metadata)
-                                
+                # Get detailed show info
+                show_data = tvmaze.get_show(show_id)
+                if show_data:
+                    # Build show metadata
+                    show_metadata = {
+                        'title': show_data['title'],
+                        'year': show_data['year'],
+                        'rating': show_data['rating'],
+                        'plot': show_data['plot outline'],
+                        'genres': show_data['genres'],
+                        'type': 'show',
+                        'cast': [actor['name'] for actor in show_data.get('cast', [])],
+                        'poster': None
+                    }
+                    
+                    # Download show poster
+                    if show_data.get('full-size cover url'):
+                        poster_path = self.download_poster(
+                            show_data['full-size cover url'],
+                            show_name
+                        )
+                        if poster_path:
+                            show_metadata['poster'] = poster_path
+                    
+                    # Store show metadata
+                    show_key = f"show:{show_name}"
+                    self.metadata[show_key] = show_metadata
+                    
+                    # Get episodes data for each season
+                    for season_num, episodes in seasons.items():
+                        season_data = tvmaze.get_season(show_id, int(season_num))
+                        if season_data and season_data['episodes']:
+                            for episode in episodes:
+                                episode_number = self._get_episode_number(episode['title'])
+                                if episode_number:
+                                    # Find matching episode
+                                    tvmaze_episode = next(
+                                        (e for e in season_data['episodes'] 
+                                         if e['episode_number'] == episode_number),
+                                        None
+                                    )
+                                    
+                                    if tvmaze_episode:
+                                        episode_metadata = {
+                                            'title': tvmaze_episode['title'],
+                                            'plot': tvmaze_episode['plot'],
+                                            'air_date': tvmaze_episode['air_date'],
+                                            'rating': tvmaze_episode['rating'],
+                                            'season': season_num,
+                                            'episode': episode_number,
+                                            'is_episode': True,
+                                            'show_name': show_name,
+                                            'type': 'episode'
+                                        }
+                                        
+                                        # Update episode metadata
+                                        self.update_metadata(episode['path'], episode_metadata)
+                    
+                    # Save all metadata
+                    self.save_metadata()
+                                    
         except Exception as e:
             print(f"Error processing show {show_name}: {e}")
 
@@ -512,95 +523,76 @@ class VideohWindow(Adw.ApplicationWindow):
         subprocess.run(['xdg-open', str(self.videos_dir)])
 
     def populate_ui(self):
-        # Clear existing content from FlowBoxes
+        """Populate the UI with movies and shows"""
+        # Clear existing content
         self.movies_box.remove_all()
         self.shows_box.remove_all()
-        
-        # Common function to create poster card
-        def create_poster_card(title, metadata, on_click, is_show=False):
-            overlay = Gtk.Overlay()
-            overlay.add_css_class('poster-box')
+
+        def create_empty_view(text):
+            """Create an empty state view with centered text"""
+            # Create a box that fills the entire container
+            container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            container.set_vexpand(True)
+            container.set_hexpand(True)
             
-            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-            box.add_css_class('card')
+            # Create centered content box
+            content_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+            content_box.set_valign(Gtk.Align.CENTER)
+            content_box.set_halign(Gtk.Align.CENTER)
             
-            # Add poster image
-            poster = metadata.get('poster')
-            if poster and Path(poster).exists():
-                pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
-                    poster, 200, 300, False)
-                image = Gtk.Picture.new_for_pixbuf(pixbuf)
-            else:
-                # Use different fallback icons for shows and movies
-                icon_name = "video-television" if is_show else "image-missing"
-                image = Gtk.Image.new_from_icon_name(icon_name)
-                image.set_pixel_size(200)
+            # Add icon
+            icon = Gtk.Image.new_from_icon_name("camera-broken-symbolic")
+            icon.set_pixel_size(64)
+            icon.set_opacity(0.5)
+            content_box.append(icon)
             
-            image.add_css_class('poster-image')
-            box.append(image)
+            # Add text
+            label = Gtk.Label(label=text)
+            label.add_css_class("dim-label")
+            label.add_css_class("title-2")
+            content_box.append(label)
             
-            # Add title label
-            label = Gtk.Label(label=title)
-            label.set_wrap(True)
-            label.set_max_width_chars(20)
-            label.set_ellipsize(Pango.EllipsizeMode.END)
-            label.add_css_class('heading')
-            label.add_css_class('poster-label')
-            box.append(label)
+            # Add centered content to the container
+            container.append(content_box)
             
-            # Add info button overlay
-            info_button = Gtk.Button()
-            info_button.set_icon_name('info-outline-symbolic' if not is_show else 'view-list-symbolic')
-            info_button.add_css_class('circular')
-            info_button.add_css_class('osd')
-            info_button.set_valign(Gtk.Align.START)
-            info_button.set_halign(Gtk.Align.END)
-            info_button.set_margin_top(6)
-            info_button.set_margin_end(6)
-            
-            # Connect info button click
-            info_button.connect('clicked', on_click)
-            
-            # Add main box and button to overlay
-            overlay.set_child(box)
-            overlay.add_overlay(info_button)
-            
-            # Make box clickable
-            click = Gtk.GestureClick.new()
-            click.connect('pressed', lambda g, n, x, y: on_click(None))
-            box.add_controller(click)
-            
-            return overlay
-        
-        # Add movies
-        for movie in self.movies:
-            title = movie.get('metadata', {}).get('title', movie['title'])
-            card = create_poster_card(
-                title,
-                movie.get('metadata', {}),
-                lambda _, m=movie: self.show_movie_details(m)
-            )
-            self.movies_box.append(card)
-        
-        # Add TV shows
-        for show_name, seasons in self.shows.items():
-            # Get show metadata from first episode or dedicated show entry
-            show_key = f"show:{show_name}"
-            show_metadata = self.metadata.get(show_key, {})
-            if not show_metadata:
-                # Fallback to first episode's metadata if no show metadata exists
-                first_season = next(iter(seasons.values()))
-                first_episode = first_season[0]
-                show_metadata = first_episode.get('metadata', {})
-            
-            # Create show card
-            card = create_poster_card(
-                show_name,
-                show_metadata,
-                lambda _, s=show_name, seas=seasons: self.show_episodes(s, seas),
-                is_show=True
-            )
-            self.shows_box.append(card)
+            return container
+
+        # Handle empty movies state
+        if not self.movies:
+            empty_movies = create_empty_view(_("No Movies Found"))
+            self.movies_box.append(empty_movies)
+        else:
+            # Add movies as before
+            for movie in self.movies:
+                title = movie.get('metadata', {}).get('title', movie['title'])
+                card = self._create_poster_card(
+                    title,
+                    movie.get('metadata', {}),
+                    lambda _, m=movie: self.show_movie_details(m)
+                )
+                self.movies_box.append(card)
+
+        # Handle empty shows state
+        if not self.shows:
+            empty_shows = create_empty_view(_("No TV Shows Found"))
+            self.shows_box.append(empty_shows)
+        else:
+            # Add TV shows as before
+            for show_name, seasons in self.shows.items():
+                show_key = f"show:{show_name}"
+                show_metadata = self.metadata.get(show_key, {})
+                if not show_metadata:
+                    first_season = next(iter(seasons.values()))
+                    first_episode = first_season[0]
+                    show_metadata = first_episode.get('metadata', {})
+                
+                card = self._create_poster_card(
+                    show_name,
+                    show_metadata,
+                    lambda _, s=show_name, seas=seasons: self.show_episodes(s, seas),
+                    is_show=True
+                )
+                self.shows_box.append(card)
 
     def show_movie_details(self, movie):
         # Create item view using template
@@ -893,7 +885,7 @@ class VideohWindow(Adw.ApplicationWindow):
         
         # Add poster image
         poster = metadata.get('poster')
-        if poster and Path(poster).exists():
+        if (poster and Path(poster).exists()):
             pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
                 poster, 200, 300, False)
             image = Gtk.Picture.new_for_pixbuf(pixbuf)
