@@ -91,6 +91,7 @@ class VideohPlayer(Adw.Window):
         self.fullscreen_button.connect('clicked', self.on_fullscreen)
         
         key_controller = Gtk.EventControllerKey.new()
+        key_controller.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)  # Set to capture phase
         key_controller.connect('key-pressed', self.on_key_pressed)
         self.add_controller(key_controller)
         
@@ -162,7 +163,6 @@ class VideohPlayer(Adw.Window):
             self.fullscreen_button.set_icon_name('view-fullscreen-symbolic')
             self.get_style_context().remove_class('fullscreen-window')
             self.get_style_context().add_class('normal-window')
-            self.show_ui()
             # Always show cursor in windowed mode
             window = self.get_root()
             if window:
@@ -201,6 +201,12 @@ class VideohPlayer(Adw.Window):
             self.get_style_context().remove_class('fullscreen-window')
             self.get_style_context().add_class('normal-window')
             self.is_fullscreen = False
+            return True
+        elif keyval == Gdk.KEY_f:  # Handle 'f' key for fullscreen
+            self.on_fullscreen(None)
+            return True
+        elif keyval == Gdk.KEY_space:  # Handle spacebar for play/pause
+            self.on_play(None)
             return True
         return False
 
