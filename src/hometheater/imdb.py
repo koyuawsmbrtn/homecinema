@@ -319,6 +319,79 @@ class IMDb:
             'episodes': sorted(episodes, key=lambda x: x['episode_number'])
         }
 
+    def search_person(self, name):
+        """Search for a person on IMDb"""
+        url = self.search_url + quote_plus(name) + "&s=nm"  # nm indicates name search
+        response = requests.get(url, headers=self.headers)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        results = []
+        for item in soup.select('.ipc-metadata-list-summary-item'):
+            try:
+                title_elem = item.select_one('.ipc-metadata-list-summary-item__t')
+                if not title_elem:
+                    continue
+                    
+                link = title_elem.get('href', '')
+                person_id = re.search(r'/name/(nm\d+)/', link)
+                if not person_id:
+                    continue
+                    
+                name_text = title_elem.text
+                match_score = self._match_score(name, name_text)
+                
+                if match_score >= 70:  # Require at least 70% match
+                    profession_elem = item.select_one('.ipc-metadata-list-summary-item__subtext')
+                    profession = profession_elem.text if profession_elem else ''
+                    
+                    results.append({
+                        'personID': person_id.group(1),
+                        'name': name_text,
+                        'profession': profession,
+                        'url': f"{self.base_url}{link}",
+                        'match_score': match_score
+                    })
+            except Exception as e:
+                print(f"Error parsing person search result: {e}")
+                continue
+        
+        # Sort by match score and return best matches
+        results.sort(key=lambda x: x['match_score'], reverse=True)
+        return results[:5] if results else None
+
+    def get_person(self, person_id):
+        """Get detailed information about a person"""
+        url = f"{self.base_url}/name/{person_id}/"
+        response = requests.get(url, headers=self.headers)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        script = soup.find('script', {'type': 'application/ld+json'})
+        if not script:
+            return None
+            
+        try:
+            data = json.loads(script.string)
+            
+            # Get bio if available
+            bio_elem = soup.select_one('[data-testid="biography"]')
+            bio = bio_elem.text.strip() if bio_elem else data.get('description', '')
+            
+            # Get headshot
+            headshot_elem = soup.select_one('[data-testid="hero-image-details"] img')
+            headshot = headshot_elem.get('src') if headshot_elem else data.get('image', '')
+            
+            return {
+                'name': data.get('name', ''),
+                'bio': bio,
+                'headshot': headshot,
+                'birth_date': data.get('birthDate', ''),
+                'birth_place': data.get('birthPlace', ''),
+                'profession': data.get('jobTitle', '')
+            }
+        except Exception as e:
+            print(f"Error parsing person data: {e}")
+            return None
+
 # Example usage:
 if __name__ == "__main__":
     imdb = IMDb()

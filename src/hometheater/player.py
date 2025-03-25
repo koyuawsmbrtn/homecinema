@@ -33,6 +33,8 @@ class HomeTheaterPlayer(Adw.Window):
         self.ui_timeout_id = None
         self.mouse_inside = False
         self.ui_visible = True
+
+        self.restored = False
         
         # Set transient for parent
         self.set_transient_for(parent)
@@ -129,9 +131,6 @@ class HomeTheaterPlayer(Adw.Window):
         
         # Create config directory if it doesn't exist
         os.makedirs(self.config_dir, exist_ok=True)
-        
-        # Load previous timestamp if exists
-        self.load_timestamp()
 
     def on_message(self, bus, message):
         t = message.type
@@ -147,10 +146,12 @@ class HomeTheaterPlayer(Adw.Window):
                 old, new, pending = message.parse_state_changed()
                 if new == Gst.State.PLAYING:
                     success, duration = self.playbin.query_duration(Gst.Format.TIME)
-                    if success:
+                    if success and self.restored == False:
                         self.duration = duration / Gst.SECOND
                         self.position_scale.set_range(0, self.duration)
-                        
+                        self.load_timestamp()
+                        self.restored = True
+
     def on_play(self, button):
         if self.play_button.get_icon_name() == 'media-playback-start-symbolic':
             self.playbin.set_state(Gst.State.PLAYING)
@@ -248,18 +249,23 @@ class HomeTheaterPlayer(Adw.Window):
                     timestamps = json.load(f)
                     if self.path in timestamps:
                         position = timestamps[self.path]
-                        # Seek to saved position after a short delay
-                        GLib.timeout_add(500, self.restore_position, position)
+                        # Directly seek to the saved position
+                        self.restore_position(position)
         except Exception as e:
             print(f"Error loading timestamp: {e}")
 
     def restore_position(self, position):
-        self.playbin.seek_simple(
-            Gst.Format.TIME,
-            Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
-            int(position * Gst.SECOND)
-        )
-        return False
+        try:
+            success, duration = self.playbin.query_duration(Gst.Format.TIME)
+            if success and duration > 0:
+                target_position = min(int(position * Gst.SECOND), duration)
+                self.playbin.seek_simple(
+                    Gst.Format.TIME,
+                    Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
+                    target_position
+                )
+        except Exception as e:
+            print(f"Error restoring position: {e}")
 
     def save_timestamp(self):
         try:

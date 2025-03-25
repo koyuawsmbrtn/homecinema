@@ -452,8 +452,9 @@ class HomeTheaterWindow(Adw.ApplicationWindow):
                                 _("Fetching info for: {}").format(cast_member)
                             )
                             wiki_data = self.wikipedia.search_person(cast_member)
+                            
                             if wiki_data and wiki_data.get('image_url'):
-                                # Download and cache the image
+                                # Use Wikipedia data
                                 image_path = self.download_person_image(
                                     wiki_data['image_url'],
                                     cast_member,
@@ -461,17 +462,40 @@ class HomeTheaterWindow(Adw.ApplicationWindow):
                                 )
                                 if image_path:
                                     metadata['cast_images'][cast_member] = image_path
-                                metadata['cast_bios'][cast_member] = wiki_data.get('description')
+                                if wiki_data.get('description'):
+                                    metadata['cast_bios'][cast_member] = wiki_data['description']
+                            elif self.settings.get_boolean('use-imdb'):
+                                # Fall back to IMDb data for cast member
+                                try:
+                                    cast_search = imdb.search_person(cast_member)
+                                    if cast_search and len(cast_search) > 0:
+                                        # Get first result's ID directly from dictionary
+                                        person_id = cast_search[0]['personID']
+                                        person_data = imdb.get_person(person_id)
+                                        if person_data:
+                                            if person_data.get('headshot'):
+                                                image_path = self.download_person_image(
+                                                    person_data['headshot'],
+                                                    cast_member,
+                                                    'cast'
+                                                )
+                                                if image_path:
+                                                    metadata['cast_images'][cast_member] = image_path
+                                            if person_data.get('bio'):
+                                                metadata['cast_bios'][cast_member] = person_data['bio']
+                                except Exception as e:
+                                    print(f"Error fetching IMDb data for {cast_member}: {e}")
 
-                        # Fetch director info
+                        # Fetch director info with similar fallback
                         for director in metadata['director']:
                             self._update_progress_safely(
                                 progress_dialog, 
                                 _("Fetching info for: {}").format(director)
                             )
                             wiki_data = self.wikipedia.search_person(director)
+                            
                             if wiki_data and wiki_data.get('image_url'):
-                                # Download and cache the image
+                                # Use Wikipedia data
                                 image_path = self.download_person_image(
                                     wiki_data['image_url'],
                                     director,
@@ -480,6 +504,25 @@ class HomeTheaterWindow(Adw.ApplicationWindow):
                                 if image_path:
                                     metadata['director_images'][director] = image_path
                                 metadata['director_bios'][director] = wiki_data.get('description')
+                            elif self.settings.get_boolean('use-imdb'):
+                                # Fall back to IMDb data for director
+                                try:
+                                    director_search = imdb.search_person(director)
+                                    if director_search:
+                                        person_id = director_search[0].getID()
+                                        person_data = imdb.get_person(person_id)
+                                        if person_data.get('headshot'):
+                                            image_path = self.download_person_image(
+                                                person_data['headshot'],
+                                                director,
+                                                'directors'
+                                            )
+                                            if image_path:
+                                                metadata['director_images'][director] = image_path
+                                        if person_data.get('bio'):
+                                            metadata['director_bios'][director] = person_data['bio']
+                                except Exception as e:
+                                    print(f"Error fetching IMDb data for {director}: {e}")
 
                     # Update metadata
                     self.update_metadata(movie['path'], metadata)
