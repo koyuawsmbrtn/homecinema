@@ -1,6 +1,8 @@
 import gi
 import subprocess
 from pathlib import Path
+
+from .player import VideohPlayer
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
 from gi.repository import Gtk, Adw, GObject, Gio, GLib, GdkPixbuf, Gdk, Gsk, Graphene
@@ -188,7 +190,8 @@ class VideohItem(Gtk.Box):
         # Launch video player (using xdg-open for Linux)
         if hasattr(self, 'video_path') and self.video_path:
             try:
-                subprocess.Popen(['xdg-open', self.video_path])
+                player = VideohPlayer(self.window, self.video_path)
+                player.present()
             except Exception as e:
                 dialog = Adw.MessageDialog(
                     transient_for=self.get_root(),

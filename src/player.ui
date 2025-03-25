@@ -2,24 +2,54 @@
 <interface>
   <requires lib="gtk" version="4.0"/>
   <requires lib="Adw" version="1.0"/>
-  <requires lib="clapper-gtk" version="1.0"/>
-  <template class="VideohPlayer" parent="GtkBox">
-    <property name="orientation">vertical</property>
+  <template class="VideohPlayer" parent="AdwWindow">
+    <property name="default-width">800</property>
+    <property name="default-height">600</property>
     <child>
-      <object class="AdwHeaderBar" id="header_bar">
-        <property name="show-start-title-buttons">false</property>
-        <child type="end">
-          <object class="GtkButton" id="fullscreen_button">
-            <property name="icon-name">view-fullscreen-symbolic</property>
-            <property name="tooltip-text" translatable="yes">Fullscreen</property>
+      <object class="GtkBox">
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="AdwHeaderBar" id="header_bar">
+            <property name="show-start-title-buttons">true</property>
+            <child type="end">
+              <object class="GtkButton" id="fullscreen_button">
+                <property name="icon-name">view-fullscreen-symbolic</property>
+                <property name="tooltip-text" translatable="yes">Fullscreen</property>
+              </object>
+            </child>
           </object>
         </child>
-      </object>
-    </child>
-    <child>
-      <object class="GtkBox" id="player_box">
-        <property name="vexpand">true</property>
-        <property name="hexpand">true</property>
+        <child>
+          <object class="GtkPicture" id="video_area">
+            <property name="vexpand">true</property>
+            <property name="can-shrink">false</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkBox" id="controls">
+            <property name="margin-start">12</property>
+            <property name="margin-end">12</property>
+            <property name="margin-top">12</property>
+            <property name="margin-bottom">12</property>
+            <property name="spacing">6</property>
+            <child>
+              <object class="GtkButton" id="play_button">
+                <property name="icon-name">media-playback-start-symbolic</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkScale" id="position_scale">
+                <property name="hexpand">true</property>
+                <property name="draw-value">false</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkLabel" id="time_label">
+                <property name="label">00:00</property>
+              </object>
+            </child>
+          </object>
+        </child>
       </object>
     </child>
   </template>
