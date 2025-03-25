@@ -659,7 +659,7 @@ class VideohWindow(Adw.ApplicationWindow):
     def on_about(self, action, param):
         about = Adw.AboutWindow(
             transient_for=self,
-            application_name='Home Cinema',
+            application_name='Home Theater',
             application_icon='space.koyu.videoh',
             developer_name='koyu.space',
             version='1.0',
