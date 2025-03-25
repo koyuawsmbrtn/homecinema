@@ -46,6 +46,7 @@ class AvatarPicture(Gtk.DrawingArea):
         self.set_size_request(size, size)
         self.set_draw_func(self._draw)
         self.pixbuf = None
+        self.pending_icon = None
         
     def set_image(self, path):
         if path and Path(path).exists():
@@ -56,14 +57,40 @@ class AvatarPicture(Gtk.DrawingArea):
                 False
             )
         else:
-            # Load default avatar icon
-            icon_theme = Gtk.IconTheme.get_for_display(Gdk.Display.get_default())
-            self.pixbuf = icon_theme.load_icon(
-                "avatar-default-symbolic",
+            # Store the icon name for later use
+            self.pending_icon = "avatar-default-symbolic"
+            # Connect to the realize signal if not already connected
+            if not hasattr(self, '_realize_handler'):
+                self._realize_handler = self.connect('realize', self._on_realize)
+        
+        self.queue_draw()
+    
+    def _on_realize(self, widget):
+        if self.pending_icon:
+            icon_theme = Gtk.IconTheme.get_for_display(self.get_display())
+            icon_paintable = icon_theme.lookup_icon(
+                self.pending_icon,
+                None,
                 48,
+                1,
+                self.get_direction(),
                 Gtk.IconLookupFlags.FORCE_SYMBOLIC
             )
-        self.queue_draw()
+            if icon_paintable:
+                snapshot = Gtk.Snapshot()
+                icon_paintable.snapshot(snapshot, 48, 48)
+                node = snapshot.to_node()
+                if node:
+                    renderer = self.get_native().get_renderer()
+                    texture = renderer.render_texture(node, Graphene.Rect().init(0, 0, 48, 48))
+                    self.pixbuf = Gdk.pixbuf_get_from_texture(texture)
+                    self.pending_icon = None
+                    self.queue_draw()
+        
+        # Disconnect the handler after use
+        if hasattr(self, '_realize_handler'):
+            self.disconnect(self._realize_handler)
+            del self._realize_handler
 
     def _draw(self, area, cr, width, height):
         if not self.pixbuf:
