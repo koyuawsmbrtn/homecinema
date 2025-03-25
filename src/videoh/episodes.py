@@ -3,7 +3,7 @@ import re
 import html
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
-from gi.repository import Gtk, Adw, Pango, GdkPixbuf
+from gi.repository import Gtk, Adw, Pango, GdkPixbuf, Gdk
 from pathlib import Path
 
 @Gtk.Template(resource_path='/space/koyu/videoh/episodes.ui')
@@ -13,7 +13,7 @@ class EpisodesUI(Gtk.Box):
     # Add template children
     season_selector = Gtk.Template.Child()
     episodes_box = Gtk.Template.Child()
-    show_poster = Gtk.Template.Child()
+    poster_container = Gtk.Template.Child()
     show_title = Gtk.Template.Child()
     show_year = Gtk.Template.Child()
     show_genres = Gtk.Template.Child()
@@ -73,7 +73,10 @@ class EpisodesUI(Gtk.Box):
             try:
                 pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
                     poster_path, 150, 225, True)
-                self.show_poster.set_pixbuf(pixbuf)
+                rounded_poster = RoundedPicture()
+                rounded_poster.set_size_request(150, 225)
+                rounded_poster.set_pixbuf(pixbuf)
+                self.poster_container.append(rounded_poster)
             except Exception as e:
                 print(f"Error loading show poster: {e}")
         
@@ -263,3 +266,38 @@ class EpisodesUI(Gtk.Box):
             season_text = dropdown.get_model().get_string(selected)
             season_num = season_text.split()[-1]
             self.populate_season(season_num)
+
+class RoundedPicture(Gtk.DrawingArea):
+    def __init__(self):
+        super().__init__()
+        self.pixbuf = None
+        self.set_draw_func(self._draw)
+        
+    def set_pixbuf(self, pixbuf):
+        self.pixbuf = pixbuf
+        self.queue_draw()
+        
+    def _draw(self, area, cr, width, height):
+        if not self.pixbuf:
+            return
+            
+        # Create rounded rectangle path
+        radius = 12
+        degrees = 3.14159 / 180.0
+        
+        cr.new_path()
+        cr.arc(radius, radius, radius, 180 * degrees, 270 * degrees)
+        cr.arc(width - radius, radius, radius, -90 * degrees, 0 * degrees)
+        cr.arc(width - radius, height - radius, radius, 0 * degrees, 90 * degrees)
+        cr.arc(radius, height - radius, radius, 90 * degrees, 180 * degrees)
+        cr.close_path()
+        
+        cr.clip()
+        
+        # Scale and draw the image
+        scale_x = width / self.pixbuf.get_width()
+        scale_y = height / self.pixbuf.get_height()
+        cr.scale(scale_x, scale_y)
+        
+        Gdk.cairo_set_source_pixbuf(cr, self.pixbuf, 0, 0)
+        cr.paint()

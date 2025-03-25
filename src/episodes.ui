@@ -39,13 +39,9 @@
                   <class name="show-info-box"/>
                 </style>
                 <child>
-                  <object class="GtkPicture" id="show_poster">
-                    <property name="width-request">150</property>
-                    <property name="height-request">250</property>
-                    <property name="content-fit">cover</property>
-                    <style>
-                      <class name="rounded-corners"/>
-                    </style>
+                  <object class="GtkBox" id="poster_container">
+                    <property name="hexpand">False</property>
+                    <property name="vexpand">False</property>
                   </object>
                 </child>
                 <child>
