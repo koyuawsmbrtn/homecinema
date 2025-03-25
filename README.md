@@ -7,6 +7,7 @@ This is a video player for all your movies and shows using GTK. Written in Pytho
 - [x] Basic UI
 - [x] Basic Video Player
 - [ ] Add more scrapers
+- [ ] Add support for MyAnimeList
 - [ ] Episode/Season select right from the player
 - [ ] Subtitle support
 - [ ] Fix a lot of the ugly UI
