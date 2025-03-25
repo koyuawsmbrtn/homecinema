@@ -3,7 +3,7 @@ gi.require_version('Gst', '1.0')
 gi.require_version('Gtk', '4.0')
 gi.require_version('GstVideo', '1.0')
 gi.require_version('Adw', '1')
-from gi.repository import Gtk, GObject, Gst, GstVideo, Adw, Gio, GLib
+from gi.repository import Gtk, GObject, Gst, GstVideo, Adw, Gio, GLib, Gdk
 from pathlib import Path
 import json
 
@@ -18,6 +18,7 @@ class VideohPlayer(Adw.Window):
     position_scale = Gtk.Template.Child()
     time_label = Gtk.Template.Child()
     fullscreen_button = Gtk.Template.Child()
+    header_bar = Gtk.Template.Child()  # Add this to template children at top
 
     def __init__(self, parent, path, title=None, show_metadata=None):
         super().__init__()
@@ -26,6 +27,10 @@ class VideohPlayer(Adw.Window):
         self.path = str(path)  # Ensure path is string
         self.duration = 0
         self.is_fullscreen = False
+        
+        # Add properties for UI hiding
+        self.ui_timeout_id = None
+        self.mouse_inside = False
         
         # Set transient for parent
         self.set_transient_for(parent)
@@ -84,6 +89,33 @@ class VideohPlayer(Adw.Window):
         self.position_scale.connect('change-value', self.on_seek)
         self.fullscreen_button.connect('clicked', self.on_fullscreen)
         
+        # Set up event controllers
+        motion_controller = Gtk.EventControllerMotion.new()
+        motion_controller.connect('enter', self.on_mouse_enter)
+        motion_controller.connect('leave', self.on_mouse_leave)
+        motion_controller.connect('motion', self.on_mouse_motion)
+        self.add_controller(motion_controller)
+        
+        key_controller = Gtk.EventControllerKey.new()
+        key_controller.connect('key-pressed', self.on_key_pressed)
+        self.add_controller(key_controller)
+        
+        # Set up CSS provider for fullscreen
+        css_provider = Gtk.CssProvider()
+        css_provider.load_from_data(b"""
+            .fullscreen-window {
+                background-color: black;
+            }
+            .normal-window {
+                background-color: @window_bg_color;
+            }
+        """)
+        self.get_style_context().add_provider(
+            css_provider, 
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+        self.get_style_context().add_class('normal-window')
+        
         # Update position every second
         GLib.timeout_add(1000, self.update_position)
         
@@ -129,9 +161,15 @@ class VideohPlayer(Adw.Window):
         if self.is_fullscreen:
             self.unfullscreen()
             self.fullscreen_button.set_icon_name('view-fullscreen-symbolic')
+            self.get_style_context().remove_class('fullscreen-window')
+            self.get_style_context().add_class('normal-window')
+            self.show_ui()
         else:
             self.fullscreen()
             self.fullscreen_button.set_icon_name('view-restore-symbolic')
+            self.get_style_context().remove_class('normal-window')
+            self.get_style_context().add_class('fullscreen-window')
+            self.schedule_hide_ui()
         self.is_fullscreen = not self.is_fullscreen
         
     def update_position(self):
@@ -152,4 +190,42 @@ class VideohPlayer(Adw.Window):
         
     def do_close_request(self):
         self.playbin.set_state(Gst.State.NULL)
+        return False
+
+    def on_mouse_enter(self, controller, x, y):
+        self.mouse_inside = True
+        self.show_ui()
+        
+    def on_mouse_leave(self, controller):
+        self.mouse_inside = False
+        self.schedule_hide_ui()
+        
+    def on_mouse_motion(self, controller, x, y):
+        self.show_ui()
+        self.schedule_hide_ui()
+        
+    def show_ui(self):
+        self.header_bar.set_visible(True)
+        self.controls.set_visible(True)
+        
+    def hide_ui(self):
+        if self.is_fullscreen and not self.mouse_inside:
+            self.header_bar.set_visible(False)
+            self.controls.set_visible(False)
+        return False  # Important for timeout
+        
+    def schedule_hide_ui(self):
+        if self.ui_timeout_id and GLib.main_context_default().find_source_by_id(self.ui_timeout_id):
+            GLib.source_remove(self.ui_timeout_id)
+        self.ui_timeout_id = GLib.timeout_add(2000, self.hide_ui)
+        
+    def on_key_pressed(self, controller, keyval, keycode, state):
+        if keyval == Gdk.KEY_Escape and self.is_fullscreen:
+            self.unfullscreen()
+            self.fullscreen_button.set_icon_name('view-fullscreen-symbolic')
+            self.get_style_context().remove_class('fullscreen-window')
+            self.get_style_context().add_class('normal-window')
+            self.show_ui()
+            self.is_fullscreen = False
+            return True
         return False
