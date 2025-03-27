@@ -1,10 +1,13 @@
 import gi
 import re
 import html
+import json
+import os
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
 from gi.repository import Gtk, Adw, Pango, GdkPixbuf, Gdk
 from pathlib import Path
+import subprocess
 
 @Gtk.Template(resource_path='/space/koyu/hometheater/episodes.ui')
 class EpisodesUI(Gtk.Box):
@@ -145,10 +148,84 @@ class EpisodesUI(Gtk.Box):
             margin: 4px;
             border-radius: 9999px;
         }
+
+        .episode-list progressbar {
+            margin: 0;
+            padding: 0;
+            min-height: 3px;
+        }
+        
+        .episode-list progressbar.episode-progress {
+            margin-top: -12px;  /* Negative margin to position at top */
+            margin-bottom: 12px;
+            margin-start: -12px;
+            margin-end: -12px;
+        }
+        
+        .episode-list progressbar > trough {
+            min-height: 3px;
+            border: none;
+            background-color: transparent;
+        }
+        
+        .episode-list progressbar > trough > progress {
+            min-height: 3px;
+            background-color: @accent_color;
+            border-radius: 0;
+        }
+        
+        .episode-progress-container {
+            padding: 0;
+            margin: 0;
+        }
+
+        .episode-overlay {
+            margin: 0;
+            padding: 0;
+            border-radius: 12px; /* Match the row's rounded corners */
+            overflow: hidden;    /* Ensure the progress bar stays within bounds */
+        }
+
+        .episode-progress {
+            min-height: 4px;
+            background-color: @accent_color;
+        }
+
+        .episode-progress > trough {
+            background-color: alpha(@accent_color, 0.1);
+        }
+
+        .episode-progress > trough > progress {
+            background-color: @accent_color;
+        }
         """
         css_provider = Gtk.CssProvider()
         css_provider.load_from_data(css_string.encode(), -1)
         self.get_style_context().add_provider(css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+
+    def get_episode_progress(self, episode_path):
+        """Get progress percentage for an episode"""
+        try:
+            xdg_config = os.environ.get('XDG_CONFIG_HOME', os.path.expanduser('~/.config'))
+            config_dir = os.path.join(xdg_config, 'hometheater')
+            timestamps_file = os.path.join(config_dir, 'timestamps.json')
+            
+            if os.path.exists(timestamps_file):
+                with open(timestamps_file, 'r') as f:
+                    timestamps = json.load(f)
+                    if str(episode_path) in timestamps:
+                        position = float(timestamps[str(episode_path)])
+                        result = subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', episode_path], capture_output=True, text=True)
+                        duration = float(result.stdout.strip())
+                        if position > 0:
+                            progress = min(position / duration, 1.0)
+                            print(f"Timestamps file: {timestamps_file}")
+                            print(f"Episode path: {episode_path}")
+                            print(f"Progress: {progress}")
+                            return progress
+        except Exception as e:
+            print(f"Error loading progress: {e}")
+        return 0
 
     def populate_season(self, season_num):
         """Populate episodes for given season"""
@@ -237,7 +314,9 @@ class EpisodesUI(Gtk.Box):
                     else:
                         row.set_subtitle(plot)
 
-            # Add play button
+            # Add progress bar if episode has been started
+            progress = self.get_episode_progress(episode_path)
+            # Add play button first
             play_button = Gtk.Button()
             play_button.set_icon_name('media-playback-start-symbolic')
             play_button.set_valign(Gtk.Align.CENTER)
@@ -248,10 +327,30 @@ class EpisodesUI(Gtk.Box):
                 return lambda b: self.on_episode_clicked(ep)
             play_button.connect('clicked', make_click_handler(episode))
             row.add_suffix(play_button)
-            
-            # Remove the info button since row is now clickable
-            
-            self.episodes_box.append(row)
+
+            if progress > 0:
+                # Create an overlay to stack the progress bar on top of the row
+                overlay = Gtk.Overlay()
+                overlay.add_css_class('episode-overlay')
+
+                # Create the progress bar
+                progress_bar = Gtk.ProgressBar()
+                progress_bar.set_fraction(progress)
+                progress_bar.set_hexpand(True)
+                progress_bar.set_valign(Gtk.Align.START)
+                progress_bar.add_css_class('episode-progress')
+
+                # Add the progress bar to the overlay
+                overlay.add_overlay(progress_bar)
+
+                # Add the row as the main child of the overlay
+                overlay.set_child(row)
+
+                # Append the overlay (instead of the row) to the episodes box
+                self.episodes_box.append(overlay)
+            else:
+                # If no progress, append the row directly
+                self.episodes_box.append(row)
 
     def on_season_changed(self, dropdown, *args):
         # Get selected season number from dropdown

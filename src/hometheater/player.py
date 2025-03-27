@@ -126,7 +126,8 @@ class HomeTheaterPlayer(Adw.Window):
         GLib.idle_add(lambda: self.volume_scale.set_value(1.0))  # Set default volume after widget is realized
         self.volume_scale.connect('value-changed', self.on_volume_changed)
 
-        self.config_dir = os.path.expanduser('~/.config/hometheater')
+        xdg_config = os.environ.get('XDG_CONFIG_HOME', os.path.expanduser('~/.config'))
+        self.config_dir = os.path.join(xdg_config, 'hometheater')
         self.timestamps_file = os.path.join(self.config_dir, 'timestamps.json')
         
         # Create config directory if it doesn't exist

@@ -14,7 +14,6 @@
         "--filesystem=host:ro",
         "--talk-name=org.freedesktop.portal.FileChooser",
         "--talk-name=org.freedesktop.portal.OpenURI",
-        "--filesystem=host",
         "--socket=pulseaudio",
         "--device=all",
         "--filesystem=xdg-run/gvfsd",
