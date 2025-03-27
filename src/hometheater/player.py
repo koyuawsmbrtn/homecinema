@@ -25,6 +25,7 @@ class HomeTheaterPlayer(Adw.Window):
     def __init__(self, parent, path, title=None, show_metadata=None):
         super().__init__()
         self.set_transient_for(parent)
+        self.parent = parent  # Store parent reference
         self.path = str(path)  # Ensure path is string
         self.duration = 0
         self.is_fullscreen = False
@@ -221,6 +222,16 @@ class HomeTheaterPlayer(Adw.Window):
     def do_close_request(self):
         self.save_timestamp()
         self.playbin.set_state(Gst.State.NULL)
+        
+        # Navigate through widget hierarchy to find episodes UI
+        toast_overlay = self.parent.get_content()
+        navigation_view = toast_overlay.get_child()
+        page = navigation_view.get_visible_page()
+        content = page.get_child()  # Get the actual EpisodesUI from the page
+        
+        if hasattr(content, 'refresh_current_season'):
+            content.refresh_current_season()
+        
         return False
 
     def on_key_pressed(self, controller, keyval, keycode, state):

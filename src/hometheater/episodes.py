@@ -255,7 +255,7 @@ class EpisodesUI(Gtk.Box):
                         position = float(timestamps[str(episode_path)])
                         result = subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', episode_path], capture_output=True, text=True)
                         duration = float(result.stdout.strip())
-                        if position > 0:
+                        if position > 10:
                             progress = min(position / duration, 1.0)
                             return progress
         except Exception as e:
@@ -434,6 +434,14 @@ class EpisodesUI(Gtk.Box):
             title=self.show_title.get_label() + " - " + episode['metadata']['title'],
             show_metadata=show_metadata
         )
+
+    def refresh_current_season(self):
+        """Refresh the current season view"""
+        selected = self.season_selector.get_selected()
+        if selected != Gtk.INVALID_LIST_POSITION:
+            season_text = self.season_selector.get_model().get_string(selected)
+            season_num = season_text.split()[-1]
+            self.populate_season(season_num)
 
 class RoundedPicture(Gtk.DrawingArea):
     def __init__(self):
