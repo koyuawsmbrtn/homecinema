@@ -131,14 +131,38 @@ class EpisodesUI(Gtk.Box):
 
         .episode-row {
             transition: background-color 200ms ease;
+            padding: 0;  /* Remove padding from row */
+            margin: 2px;
+            border-radius: 12px;
+            overflow: hidden;
         }
         
-        .episode-row:hover {
-            background-color: alpha(@accent_color, 0.08);
+        .episode-content {
+            padding: 12px;  /* Add padding to content box instead */
         }
         
-        .episode-row:active {
-            background-color: alpha(@accent_color, 0.12);
+        .episode-progress {
+            min-height: 3px;
+            background-color: @accent_color;
+            margin: 0;
+            padding: 0;
+        }
+
+        .episode-progress trough {
+            min-height: 3px;
+            background-color: alpha(@accent_color, 0.1);
+            border: none;
+            border-radius: 0;
+            margin: 0;
+            padding: 0;
+        }
+
+        .episode-progress progress {
+            min-height: 3px;
+            background-color: @accent_color;
+            border-radius: 0;
+            margin: 0;
+            padding: 0;
         }
 
         .circular {
@@ -188,15 +212,29 @@ class EpisodesUI(Gtk.Box):
 
         .episode-progress {
             min-height: 4px;
-            background-color: @accent_color;
+            margin: 0;
+            padding: 0;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
         }
 
         .episode-progress > trough {
+            min-height: 4px;
             background-color: alpha(@accent_color, 0.1);
+            border: none;
         }
 
         .episode-progress > trough > progress {
+            min-height: 4px;
             background-color: @accent_color;
+            border-radius: 0;
+        }
+
+        .episode-overlay {
+            border-radius: 12px;
+            overflow: hidden;
         }
         """
         css_provider = Gtk.CssProvider()
@@ -219,9 +257,6 @@ class EpisodesUI(Gtk.Box):
                         duration = float(result.stdout.strip())
                         if position > 0:
                             progress = min(position / duration, 1.0)
-                            print(f"Timestamps file: {timestamps_file}")
-                            print(f"Episode path: {episode_path}")
-                            print(f"Progress: {progress}")
                             return progress
         except Exception as e:
             print(f"Error loading progress: {e}")
@@ -257,20 +292,32 @@ class EpisodesUI(Gtk.Box):
             episode_path = episode['path']
             metadata = self.parent_window.get_episode_metadata(episode_path)
             
-            # Create row with episode info
+            # Create content box for padding
+            content_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            content_box.add_css_class('episode-content')
+
+            progress = self.get_episode_progress(episode_path)
+            if progress > 0:
+                # Create the progress bar at the top
+                progress_bar = Gtk.ProgressBar()
+                progress_bar.set_fraction(progress)
+                progress_bar.add_css_class('episode-progress')
+                content_box.append(progress_bar)
+
+            # Add episode number and title
             row = Adw.ActionRow()
-            row.add_css_class('episode-row')  # Add class for hover styling
-            
-            # Add episode number button on the left
+            row.add_css_class('episode-row')
+
+            # Add episode number button
             ep_button = Gtk.Button()
             ep_button.set_label(str(ep_num))
             ep_button.add_css_class('circular')
             ep_button.add_css_class('episode-number')
             ep_button.set_valign(Gtk.Align.CENTER)
             ep_button.add_css_class('flat')
-            ep_button.set_sensitive(False)  # Make it non-clickable
+            ep_button.set_sensitive(False)
             row.add_prefix(ep_button)
-            
+
             # Get episode title without the episode number prefix
             if metadata:
                 if metadata.get('episode_title'):
@@ -314,9 +361,7 @@ class EpisodesUI(Gtk.Box):
                     else:
                         row.set_subtitle(plot)
 
-            # Add progress bar if episode has been started
-            progress = self.get_episode_progress(episode_path)
-            # Add play button first
+            # Add play button
             play_button = Gtk.Button()
             play_button.set_icon_name('media-playback-start-symbolic')
             play_button.set_valign(Gtk.Align.CENTER)
@@ -328,29 +373,11 @@ class EpisodesUI(Gtk.Box):
             play_button.connect('clicked', make_click_handler(episode))
             row.add_suffix(play_button)
 
-            if progress > 0:
-                # Create an overlay to stack the progress bar on top of the row
-                overlay = Gtk.Overlay()
-                overlay.add_css_class('episode-overlay')
+            # Add row to content box
+            content_box.append(row)
 
-                # Create the progress bar
-                progress_bar = Gtk.ProgressBar()
-                progress_bar.set_fraction(progress)
-                progress_bar.set_hexpand(True)
-                progress_bar.set_valign(Gtk.Align.START)
-                progress_bar.add_css_class('episode-progress')
-
-                # Add the progress bar to the overlay
-                overlay.add_overlay(progress_bar)
-
-                # Add the row as the main child of the overlay
-                overlay.set_child(row)
-
-                # Append the overlay (instead of the row) to the episodes box
-                self.episodes_box.append(overlay)
-            else:
-                # If no progress, append the row directly
-                self.episodes_box.append(row)
+            # Add content box to episodes box
+            self.episodes_box.append(content_box)
 
     def on_season_changed(self, dropdown, *args):
         # Get selected season number from dropdown
