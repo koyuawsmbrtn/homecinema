@@ -262,6 +262,33 @@ class EpisodesUI(Gtk.Box):
             print(f"Error loading progress: {e}")
         return 0
 
+    def mark_as_watched(self, episode_path):
+        """Remove timestamp entry for an episode"""
+        try:
+            xdg_config = os.environ.get('XDG_CONFIG_HOME', os.path.expanduser('~/.config'))
+            config_dir = os.path.join(xdg_config, 'hometheater')
+            timestamps_file = os.path.join(config_dir, 'timestamps.json')
+            
+            if os.path.exists(timestamps_file):
+                with open(timestamps_file, 'r') as f:
+                    timestamps = json.load(f)
+                
+                if str(episode_path) in timestamps:
+                    del timestamps[str(episode_path)]
+                    
+                    with open(timestamps_file, 'w') as f:
+                        json.dump(timestamps, f, indent=4)
+                    
+                    # Refresh the current season view
+                    selected = self.season_selector.get_selected()
+                    if selected != Gtk.INVALID_LIST_POSITION:
+                        season_text = self.season_selector.get_model().get_string(selected)
+                        season_num = season_text.split()[-1]
+                        self.populate_season(season_num)
+                        
+        except Exception as e:
+            print(f"Error marking episode as watched: {e}")
+
     def populate_season(self, season_num):
         """Populate episodes for given season"""
         episodes = self.seasons[season_num]
@@ -360,6 +387,19 @@ class EpisodesUI(Gtk.Box):
                         row.set_subtitle(row.get_subtitle() + "\n" + plot)
                     else:
                         row.set_subtitle(plot)
+
+            # Add watched button if there's progress
+            if progress > 0:
+                watched_button = Gtk.Button()
+                watched_button.set_icon_name('check-plain-symbolic')
+                watched_button.set_valign(Gtk.Align.CENTER)
+                watched_button.add_css_class('circular')
+                watched_button.add_css_class('flat')
+                # Create a closure to properly capture the episode path
+                def make_watched_handler(ep_path):
+                    return lambda b: self.mark_as_watched(ep_path)
+                watched_button.connect('clicked', make_watched_handler(episode_path))
+                row.add_suffix(watched_button)
 
             # Add play button
             play_button = Gtk.Button()

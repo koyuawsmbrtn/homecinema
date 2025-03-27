@@ -11,5 +11,6 @@
     <file preprocess="xml-stripblanks">icons/scalable/actions/info-outline-symbolic.svg</file>
     <file preprocess="xml-stripblanks">icons/scalable/actions/camera-broken-symbolic.svg</file>
     <file preprocess="xml-stripblanks">icons/scalable/actions/right-large-symbolic.svg</file>
+    <file preprocess="xml-stripblanks">icons/scalable/actions/check-plain-symbolic.svg</file>
   </gresource>
 </gresources>
